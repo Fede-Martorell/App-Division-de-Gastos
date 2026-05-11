@@ -1,4 +1,6 @@
 import { login, signup, signInWithGoogle } from '../actions'
+// Si usas Next.js, también puedes importar su componente de imagen optimizado:
+// import Image from 'next/image'
 
 export default function LoginPage({
     searchParams,
@@ -8,9 +10,19 @@ export default function LoginPage({
     return (
         <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl ring-1 ring-zinc-200">
-                <div className="mb-8 text-center">
-                    <h1 className="text-3xl font-bold text-zinc-900">División de Gastos</h1>
-                    <p className="mt-2 text-sm text-zinc-600">Ingresá para gestionar tus grupos</p>
+                <div className="mb-8 text-center flex flex-col items-center">
+                    
+                    {/* Logo Splitar */}
+                    <img 
+                        src="/logoSplitar.png" 
+                        alt="Logo Splitar" 
+                        className="mx-auto h-50 w-100 object-contain" 
+                    />
+                    
+                    {/* H1 oculto visualmente pero disponible para SEO/Accesibilidad */}
+                    <h1 className="sr-only">Splitar</h1>
+                    
+                    <p className="mt-4 text-sm text-zinc-600">Ingresá para gestionar tus grupos</p>
                 </div>
 
                 <form className="flex flex-col gap-5">
@@ -65,7 +77,7 @@ export default function LoginPage({
                     </div>
                 </form>
 
-                {/* Separador para Google (lo configuramos después) */}
+                {/* Separador para Google */}
                 <div className="mt-8 flex items-center before:mt-0.5 before:flex-1 before:border-t before:border-zinc-200 after:mt-0.5 after:flex-1 after:border-t after:border-zinc-200">
                     <p className="mx-4 mb-0 text-center text-sm font-medium text-zinc-500">O continuá con</p>
                 </div>

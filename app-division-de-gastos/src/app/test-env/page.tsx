@@ -9,9 +9,9 @@ export default function TestEnvPage() {
             <div className="mb-4">
                 <strong>Supabase URL: </strong>
                 {supabaseUrl ? (
-                    <span className="text-green-600">✅ Encontrada ({supabaseUrl})</span>
+                    <span className="text-green-600"> Encontrada ({supabaseUrl})</span>
                 ) : (
-                    <span className="text-red-600 font-bold">❌ NO ENCONTRADA (Está vacía)</span>
+                    <span className="text-red-600 font-bold">NO ENCONTRADA (Está vacía)</span>
                 )}
             </div>
 
@@ -20,7 +20,7 @@ export default function TestEnvPage() {
                 {supabaseKey ? (
                     <span className="text-green-600">✅ Encontrada (Empieza con {supabaseKey.substring(0, 10)}...)</span>
                 ) : (
-                    <span className="text-red-600 font-bold">❌ NO ENCONTRADA (Está vacía)</span>
+                    <span className="text-red-600 font-bold"> NO ENCONTRADA (Está vacía)</span>
                 )}
             </div>
         </div>
