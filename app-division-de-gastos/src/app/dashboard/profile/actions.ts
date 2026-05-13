@@ -27,9 +27,9 @@ export async function updateProfile(formData: FormData) {
         })
 
     if (error) {
-        redirect('/profile?error=No+se+pudo+actualizar+el+perfil')
+        redirect('/dashboard/profile?error=No+se+pudo+actualizar+el+perfil')
     }
 
-    revalidatePath('/profile')
+    revalidatePath('/dashboard/profile')
     redirect('/dashboard')
 }
