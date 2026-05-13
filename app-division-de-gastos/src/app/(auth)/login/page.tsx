@@ -1,4 +1,5 @@
-import { login, signup, signInWithGoogle } from '../actions'
+import { login, signInWithGoogle } from '../actions'
+import Link from 'next/link'
 // Si usas Next.js, también puedes importar su componente de imagen optimizado:
 // import Image from 'next/image'
 
@@ -68,12 +69,12 @@ export default function LoginPage({
                         >
                             Iniciar Sesión
                         </button>
-                        <button
-                            formAction={signup}
-                            className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+                        <Link
+                            href="/register"
+                            className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-center text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
                         >
                             Registrarse
-                        </button>
+                        </Link>
                     </div>
                 </form>
 
