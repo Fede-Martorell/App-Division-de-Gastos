@@ -5,10 +5,15 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 
+import { isRedirectError } from 'next/dist/client/components/redirect'
+
 async function wrapAction(action: () => Promise<void>) {
     try {
         await action()
     } catch (error: any) {
+        if (isRedirectError(error)) {
+            throw error
+        }
         console.error('[AuthAction Error]:', error)
         redirect('/login?error=Error+interno+del+servidor+o+configuracion+incorrecta')
     }
