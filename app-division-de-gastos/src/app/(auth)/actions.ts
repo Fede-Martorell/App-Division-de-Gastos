@@ -63,7 +63,7 @@ export async function signInWithGoogle() {
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${origin}/auth/callback`,
+                redirectTo: `${origin}/callback`,
             },
         })
 
@@ -87,7 +87,7 @@ export async function resetPassword(formData: FormData) {
         const origin = process.env.NEXT_PUBLIC_SITE_URL || (host ? `${protocol}://${host}` : 'http://localhost:3000')
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${origin}/auth/callback`,
+            redirectTo: `${origin}/callback`,
         })
 
         if (error) {
