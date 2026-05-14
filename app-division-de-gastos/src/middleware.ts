@@ -37,6 +37,17 @@ export async function middleware(request: NextRequest) {
                             secure,
                             sameline,
                         })
+                        response.cookies.set({
+                            name,
+                            value,
+                            path,
+                            maxAge,
+                            domain,
+                            expires,
+                            httpOnly,
+                            secure,
+                            sameline,
+                        })
                     })
                 },
             },

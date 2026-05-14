@@ -57,7 +57,9 @@ export async function signInWithGoogle() {
     await wrapAction(async () => {
         const supabase = await createClient()
         const headersList = await headers()
-        const origin = headersList.get('origin') || 'http://localhost:3000'
+        const host = headersList.get('host')
+        const protocol = headersList.get('x-forwarded-proto') || 'http'
+        const origin = process.env.NEXT_PUBLIC_SITE_URL || (host ? `${protocol}://${host}` : 'http://localhost:3000')
 
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
@@ -80,9 +82,13 @@ export async function resetPassword(formData: FormData) {
     await wrapAction(async () => {
         const supabase = await createClient()
         const email = formData.get('email') as string
+        const headersList = await headers()
+        const host = headersList.get('host')
+        const protocol = headersList.get('x-forwarded-proto') || 'http'
+        const origin = process.env.NEXT_PUBLIC_SITE_URL || (host ? `${protocol}://${host}` : 'http://localhost:3000')
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${(await headers()).get('origin')}/auth/callback`,
+            redirectTo: `${origin}/auth/callback`,
         })
 
         if (error) {
