@@ -1,18 +1,17 @@
-// pagina de registro para poder permitir crear una cuenta nueva con email y password
-// usa la server action "signup" definida en actions.ts
-// despues de registrarse redirige al perfil para cargar nombre y cbu
-
 import { signup } from '../actions'
+import { AuthButton } from '@/components/AuthButton'
 
-export default function RegisterPage({
+export default async function RegisterPage({
     searchParams,
 }: {
-    searchParams: { error?: string }
+    searchParams: Promise<{ error?: string }>
 }) {
+    const resolvedSearchParams = await searchParams
+
     return (
         <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl ring-1 ring-zinc-200">
-                
+
                 <div className="mb-8 text-center">
                     {/* mismo logo que en el login */}
                     <img
@@ -54,18 +53,18 @@ export default function RegisterPage({
                     </div>
 
                     {/* muestra el error si la url lo trae, por ejemplo */}
-                    {searchParams?.error && (
+                    {resolvedSearchParams?.error && (
                         <p className="text-sm font-medium text-red-500 bg-red-50 p-3 rounded-md">
-                            {searchParams.error}
+                            {resolvedSearchParams.error}
                         </p>
                     )}
 
-                    <button
+                    <AuthButton
                         formAction={signup}
                         className="mt-2 w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
                     >
                         Registrarse
-                    </button>
+                    </AuthButton>
                 </form>
 
                 {/* link para volver al login si ya tiene cuenta */}

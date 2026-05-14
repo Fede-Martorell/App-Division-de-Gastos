@@ -51,3 +51,18 @@ export async function signInWithGoogle() {
         redirect(data.url) // Nos lleva a la pantalla de Google
     }
 }
+
+export async function resetPassword(formData: FormData) {
+    const supabase = await createClient()
+    const email = formData.get('email') as string
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${(await headers()).get('origin')}/auth/callback`,
+    })
+
+    if (error) {
+        redirect('/login?error=Error+al+solicitar+recuperacion')
+    }
+
+    redirect('/login?message=Email+de+recuperacion+enviado')
+}
