@@ -1,0 +1,134 @@
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { createExpense } from '../actions'
+
+export default async function CreateExpensePage({
+    params,
+    searchParams,
+}: {
+    params: Promise<{ id: string }>
+    searchParams: Promise<{ error?: string }>
+}) {
+    const { id } = await params
+    const { error } = await searchParams
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) redirect('/login')
+
+    const { data: members } = await supabase
+        .from('group_members')
+        .select(`
+            user_id,
+            profiles (
+                full_name
+            )
+        `)
+        .eq('group_id', id)
+
+    if (!members?.some((m: any) => m.user_id === user.id)) {
+        redirect('/dashboard?error=No+sos+miembro+de+ese+grupo')
+    }
+
+    const today = new Date().toISOString().split('T')[0]
+    const createExpenseWithGroup = createExpense.bind(null, id)
+
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl ring-1 ring-zinc-200">
+
+                <div className="mb-8 text-center">
+                    <h1 className="text-xl font-bold text-zinc-800">Nuevo Gasto</h1>
+                    <p className="mt-1 text-sm text-zinc-500">Registra un gasto del grupo</p>
+                </div>
+
+                <form action={createExpenseWithGroup} className="flex flex-col gap-5">
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="description">
+                            Descripción
+                        </label>
+                        <input
+                            id="description"
+                            name="description"
+                            type="text"
+                            placeholder="Ej. Cena del sábado 🍕"
+                            required
+                            className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="amount">
+                            Monto
+                        </label>
+                        <input
+                            id="amount"
+                            name="amount"
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            placeholder="0.00"
+                            required
+                            className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="paid_by">
+                            Pagado por
+                        </label>
+                        <select
+                            id="paid_by"
+                            name="paid_by"
+                            defaultValue={user.id}
+                            required
+                            className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                        >
+                            {members?.map((m: any) => (
+                                <option key={m.user_id} value={m.user_id}>
+                                    {m.profiles?.full_name || 'Sin nombre'}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="date">
+                            Fecha
+                        </label>
+                        <input
+                            id="date"
+                            name="date"
+                            type="date"
+                            defaultValue={today}
+                            required
+                            className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                        />
+                    </div>
+
+                    {error && (
+                        <p className="text-sm font-medium text-red-500 bg-red-50 p-3 rounded-md">
+                            {error}
+                        </p>
+                    )}
+
+                    <div className="flex gap-3 mt-2">
+                        <Link
+                            href={`/dashboard/groups/${id}`}
+                            className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-center text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+                        >
+                            Cancelar
+                        </Link>
+                        <button
+                            type="submit"
+                            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+                        >
+                            Guardar Gasto
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    )
+}
