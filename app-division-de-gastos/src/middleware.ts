@@ -25,29 +25,9 @@ export async function middleware(request: NextRequest) {
                     return request.cookies.getAll()
                 },
                 setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, path, maxAge, domain, expires, httpOnly, secure, sameline }) => {
-                        request.cookies.set({
-                            name,
-                            value,
-                            path,
-                            maxAge,
-                            domain,
-                            expires,
-                            httpOnly,
-                            secure,
-                            sameline,
-                        })
-                        response.cookies.set({
-                            name,
-                            value,
-                            path,
-                            maxAge,
-                            domain,
-                            expires,
-                            httpOnly,
-                            secure,
-                            sameline,
-                        })
+                    cookiesToSet.forEach(({ name, value, options }) => {
+                        request.cookies.set(name, value)
+                        response.cookies.set(name, value, options)
                     })
                 },
             },
