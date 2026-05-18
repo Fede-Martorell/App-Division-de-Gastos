@@ -1,14 +1,15 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { calculateUserBalance, formatMoney } from '@/lib/balances'
 
 export default async function DashboardPage() {
     const supabase = await createClient()
 
-    // Obtenemos el usuario actual
     const { data: { user } } = await supabase.auth.getUser()
+    if (!user) redirect('/login')
 
-    // Obtenemos los grupos donde el usuario es miembro
-    const { data: groups, error } = await supabase
+    const { data: groups } = await supabase
         .from('group_members')
         .select(`
             groups (
@@ -17,9 +18,21 @@ export default async function DashboardPage() {
                 description
             )
         `)
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
 
-    const userGroups = groups?.map(g => g.groups) || []
+    const userGroups = (groups?.map(g => g.groups) || []) as any[]
+    const groupIds = userGroups.map((g: any) => g?.id).filter(Boolean)
+
+    const [{ data: allExpenses }, { data: allMembers }] = groupIds.length > 0
+        ? await Promise.all([
+            supabase.from('expenses').select('amount, paid_by, group_id').in('group_id', groupIds),
+            supabase.from('group_members').select('group_id, user_id').in('group_id', groupIds),
+        ])
+        : [{ data: [] as any[] }, { data: [] as any[] }]
+
+    const balance = calculateUserBalance(user.id, allExpenses ?? [], allMembers ?? [])
+    const porCobrar = balance > 0 ? balance : 0
+    const porPagar = balance < 0 ? -balance : 0
 
     return (
         <div className="min-h-screen bg-zinc-50 p-6">
@@ -42,11 +55,11 @@ export default async function DashboardPage() {
                     <div className="col-span-full grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <div className="rounded-2xl bg-indigo-600 p-6 text-white shadow-lg">
                             <p className="text-sm opacity-80">Total por cobrar</p>
-                            <p className="text-2xl font-bold">$ 0.00</p>
+                            <p className="text-2xl font-bold">{formatMoney(porCobrar)}</p>
                         </div>
                         <div className="rounded-2xl bg-zinc-800 p-6 text-white shadow-lg">
                             <p className="text-sm opacity-80">Total por pagar</p>
-                            <p className="text-2xl font-bold">$ 0.00</p>
+                            <p className="text-2xl font-bold">{formatMoney(porPagar)}</p>
                         </div>
                         <div className="hidden rounded-2xl bg-white p-6 text-zinc-900 shadow-sm ring-1 ring-zinc-200 sm:block">
                             <p className="text-sm text-zinc-500">Grupos Activos</p>

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { calculateGroupBalances, simplifyDebts, formatMoney } from '@/lib/balances'
 
 export default async function GroupDetailsPage({
     params,
@@ -9,6 +10,7 @@ export default async function GroupDetailsPage({
 }) {
     const { id } = params
     const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
     // 1. Obtener info del grupo y verificar que el usuario sea miembro
     const { data: group, error: groupError } = await supabase
@@ -45,6 +47,16 @@ export default async function GroupDetailsPage({
         `)
         .eq('group_id', id)
         .order('date', { ascending: false })
+
+    const memberIds = (members ?? []).map((m: any) => m.user_id)
+    const nameById = new Map<string, string>(
+        (members ?? []).map((m: any) => [m.user_id, m.profiles?.full_name || 'Usuario'])
+    )
+    const balances = calculateGroupBalances(
+        (expenses ?? []).map((e: any) => ({ amount: e.amount, paid_by: e.paid_by, group_id: id })),
+        memberIds,
+    )
+    const settlements = simplifyDebts(balances)
 
     return (
         <div className="min-h-screen bg-zinc-50 p-6">
@@ -100,8 +112,52 @@ export default async function GroupDetailsPage({
                         </div>
                     </div>
 
-                    {/* Columna Derecha: Gastos */}
+                    {/* Columna Derecha: Saldos + Gastos */}
                     <div className="col-span-2 space-y-6">
+
+                        {/* Saldos pendientes */}
+                        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
+                            <h2 className="mb-4 text-sm font-semibold text-zinc-800 uppercase tracking-wider">Saldos pendientes</h2>
+
+                            {settlements.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-6 text-center">
+                                    <p className="text-zinc-500 text-sm">Todos los saldos están al día.</p>
+                                </div>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {settlements.map((s, idx) => {
+                                        const fromName = nameById.get(s.from) || 'Usuario'
+                                        const toName = nameById.get(s.to) || 'Usuario'
+                                        const isUserDebtor = user?.id === s.from
+                                        const isUserCreditor = user?.id === s.to
+                                        const highlight = isUserDebtor || isUserCreditor
+
+                                        let label: React.ReactNode
+                                        if (isUserDebtor) {
+                                            label = <>Le debés <span className="font-bold">{formatMoney(s.amount)}</span> a <span className="font-semibold">{toName}</span></>
+                                        } else if (isUserCreditor) {
+                                            label = <><span className="font-semibold">{fromName}</span> te debe <span className="font-bold">{formatMoney(s.amount)}</span></>
+                                        } else {
+                                            label = <><span className="font-semibold">{fromName}</span> le debe <span className="font-bold">{formatMoney(s.amount)}</span> a <span className="font-semibold">{toName}</span></>
+                                        }
+
+                                        return (
+                                            <li
+                                                key={idx}
+                                                className={
+                                                    highlight
+                                                        ? `flex items-center justify-between rounded-xl p-3 text-sm ${isUserCreditor ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200' : 'bg-amber-50 text-amber-900 ring-1 ring-amber-200'}`
+                                                        : 'flex items-center justify-between rounded-xl p-3 text-sm bg-zinc-50 text-zinc-700 ring-1 ring-zinc-100'
+                                                }
+                                            >
+                                                <span>{label}</span>
+                                            </li>
+                                        )
+                                    })}
+                                </ul>
+                            )}
+                        </div>
+
                         <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
                             <h2 className="mb-4 text-sm font-semibold text-zinc-800 uppercase tracking-wider">Historial de Gastos</h2>
 
