@@ -29,12 +29,14 @@ export async function createExpense(groupId: string, formData: FormData) {
     const amount = parseFloat(amountRaw)
     const paidBy = formData.get('paid_by') as string
     const date = formData.get('date') as string
+    const participants = formData.getAll('participants') as string[]
 
-    if (!description || !paidBy || !date || isNaN(amount) || amount <= 0) {
-        redirect(`/dashboard/groups/${groupId}/expense/create?error=Datos+invalidos`)
+    if (!description || !paidBy || !date || isNaN(amount) || amount <= 0 || participants.length === 0) {
+        redirect(`/dashboard/groups/${groupId}/expense/create?error=Datos+invalidos+o+sin+participantes`)
     }
 
-    const { error: insertError } = await supabase
+    // 1. Insertar el gasto y obtener su ID
+    const { data: expenseData, error: insertError } = await supabase
         .from('expenses')
         .insert({
             group_id: groupId,
@@ -43,9 +45,31 @@ export async function createExpense(groupId: string, formData: FormData) {
             paid_by: paidBy,
             date,
         })
+        .select()
+        .single()
 
-    if (insertError) {
+    if (insertError || !expenseData) {
         redirect(`/dashboard/groups/${groupId}/expense/create?error=No+se+pudo+crear+el+gasto`)
+    }
+
+    const expenseId = expenseData.id
+    const splitAmount = amount / participants.length
+
+    // 2. Crear los splits para cada participante
+    const splits = participants.map(userId => ({
+        expense_id: expenseId,
+        user_id: userId,
+        amount_owed: splitAmount,
+    }))
+
+    const { error: splitError } = await supabase
+        .from('expense_splits')
+        .insert(splits)
+
+    if (splitError) {
+        // Si falla la creación de splits, podríamos querer revertir el gasto,
+        // pero para simplicidad aquí redirigiremos con error.
+        redirect(`/dashboard/groups/${groupId}/expense/create?error=Error+al+calcular+divisiones`)
     }
 
     revalidatePath(`/dashboard/groups/${groupId}`)

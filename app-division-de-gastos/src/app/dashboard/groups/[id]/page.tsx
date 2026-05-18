@@ -36,13 +36,17 @@ export default async function GroupDetailsPage({
         `)
         .eq('group_id', id)
 
-    // 3. Obtener gastos del grupo
+    // 3. Obtener gastos del grupo y sus splits
     const { data: expenses, error: expensesError } = await supabase
         .from('expenses')
         .select(`
             *,
             profiles!paid_by (
                 full_name
+            ),
+            expense_splits (
+                user_id,
+                amount_owed
             )
         `)
         .eq('group_id', id)
@@ -52,8 +56,13 @@ export default async function GroupDetailsPage({
     const nameById = new Map<string, string>(
         (members ?? []).map((m: any) => [m.user_id, m.profiles?.full_name || 'Usuario'])
     )
+
+    // Extraer todos los splits de todos los gastos para el cálculo global
+    const allSplits = (expenses ?? []).flatMap((e: any) => e.expense_splits || [])
+
     const balances = calculateGroupBalances(
-        (expenses ?? []).map((e: any) => ({ amount: e.amount, paid_by: e.paid_by, group_id: id })),
+        (expenses ?? []).map((e: any) => ({ amount: e.amount, paid_by: e.paid_by })),
+        allSplits,
         memberIds,
     )
     const settlements = simplifyDebts(balances)

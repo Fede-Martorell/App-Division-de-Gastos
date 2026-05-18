@@ -107,6 +107,31 @@ export default async function CreateExpensePage({
                         />
                     </div>
 
+                    <div className="space-y-3">
+                        <label className="block text-sm font-medium text-zinc-700">
+                            Participantes en el gasto
+                        </label>
+                        <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto p-2 border border-zinc-200 rounded-lg bg-zinc-50">
+                            {members?.map((m: any) => (
+                                <label key={m.user_id} className="flex items-center gap-3 p-2 rounded-md hover:bg-white hover:shadow-sm cursor-pointer transition-all group">
+                                    <input
+                                        type="checkbox"
+                                        name="participants"
+                                        value={m.user_id}
+                                        defaultChecked={true}
+                                        className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <span className="text-sm text-zinc-700 group-hover:text-zinc-900">
+                                        {m.profiles?.full_name || 'Sin nombre'}
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                        <p className="text-[10px] text-zinc-400 italic">
+                            Selecciona quiénes deben dividir este gasto.
+                        </p>
+                    </div>
+
                     {error && (
                         <p className="text-sm font-medium text-red-500 bg-red-50 p-3 rounded-md">
                             {error}

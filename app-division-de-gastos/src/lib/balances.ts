@@ -1,17 +1,15 @@
 type BalanceExpense = {
     amount: number | string
     paid_by: string
-    group_id: string
 }
 
-type BalanceMember = {
-    group_id: string
+type BalanceSplit = {
     user_id: string
+    amount_owed: number | string
 }
 
 /**
- * Calcula el balance neto del usuario asumiendo split equitativo:
- * por cada gasto de monto A en un grupo con N miembros, cada miembro debe A/N.
+ * Calcula el balance neto del usuario basado en lo que pagó y lo que debe.
  *
  * Resultado > 0: a favor del usuario (le deben).
  * Resultado < 0: en contra (debe).
@@ -19,33 +17,27 @@ type BalanceMember = {
 export function calculateUserBalance(
     userId: string,
     expenses: BalanceExpense[],
-    members: BalanceMember[],
+    splits: BalanceSplit[],
 ): number {
-    const membersByGroup = new Map<string, Set<string>>()
-    for (const m of members) {
-        if (!membersByGroup.has(m.group_id)) {
-            membersByGroup.set(m.group_id, new Set())
+    let balance = 0
+
+    // Sumamos lo que el usuario pagó
+    for (const expense of expenses) {
+        if (expense.paid_by === userId) {
+            const amount = typeof expense.amount === 'string'
+                ? parseFloat(expense.amount)
+                : expense.amount
+            if (!isNaN(amount)) balance += amount
         }
-        membersByGroup.get(m.group_id)!.add(m.user_id)
     }
 
-    let balance = 0
-    for (const expense of expenses) {
-        const groupMembers = membersByGroup.get(expense.group_id)
-        if (!groupMembers || groupMembers.size === 0) continue
-        if (!groupMembers.has(userId)) continue
-
-        const amount = typeof expense.amount === 'string'
-            ? parseFloat(expense.amount)
-            : expense.amount
-        if (isNaN(amount)) continue
-
-        const share = amount / groupMembers.size
-
-        if (expense.paid_by === userId) {
-            balance += amount - share
-        } else {
-            balance -= share
+    // Restamos lo que el usuario debe en splits
+    for (const split of splits) {
+        if (split.user_id === userId) {
+            const owed = typeof split.amount_owed === 'string'
+                ? parseFloat(split.amount_owed)
+                : split.amount_owed
+            if (!isNaN(owed)) balance -= owed
         }
     }
 
@@ -53,34 +45,37 @@ export function calculateUserBalance(
 }
 
 /**
- * Calcula el balance neto de cada miembro dentro de un grupo (split equitativo).
+ * Calcula el balance neto de cada miembro dentro de un grupo.
  * Devuelve un mapa user_id -> balance.
  */
 export function calculateGroupBalances(
     expenses: BalanceExpense[],
+    splits: BalanceSplit[],
     memberIds: string[],
 ): Map<string, number> {
     const balances = new Map<string, number>()
     for (const id of memberIds) balances.set(id, 0)
 
-    const N = memberIds.length
-    if (N === 0) return balances
-
+    // 1. Acreditar lo que cada uno pagó
     for (const expense of expenses) {
         const amount = typeof expense.amount === 'string'
             ? parseFloat(expense.amount)
             : expense.amount
         if (isNaN(amount)) continue
 
-        const share = amount / N
-        for (const id of memberIds) {
-            const current = balances.get(id) ?? 0
-            if (id === expense.paid_by) {
-                balances.set(id, current + amount - share)
-            } else {
-                balances.set(id, current - share)
-            }
-        }
+        const current = balances.get(expense.paid_by) ?? 0
+        balances.set(expense.paid_by, current + amount)
+    }
+
+    // 2. Debitar lo que cada uno debe según los splits
+    for (const split of splits) {
+        const owed = typeof split.amount_owed === 'string'
+            ? parseFloat(split.amount_owed)
+            : split.amount_owed
+        if (isNaN(owed)) continue
+
+        const current = balances.get(split.user_id) ?? 0
+        balances.set(split.user_id, current - owed)
     }
 
     return balances
