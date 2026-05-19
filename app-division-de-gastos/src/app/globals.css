@@ -24,3 +24,17 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Force all input text and placeholders to be black (equivalent to text-black) */
+input,
+textarea,
+select {
+  color: #000000 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #52525b !important; /* A dark zinc/gray color so it stands out but is still recognizable as a placeholder */
+  opacity: 1 !important;
+}
+

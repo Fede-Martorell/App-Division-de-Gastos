@@ -9,6 +9,15 @@ export default async function DashboardPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
+    // Asegurar que el usuario tenga un registro en la tabla 'profiles' para evitar violar la clave foránea en otras vistas
+    await supabase
+        .from('profiles')
+        .upsert({
+            id: user.id,
+            email: user.email,
+            full_name: user.email?.split('@')[0] || 'Usuario'
+        }, { onConflict: 'id' })
+
     const { data: groups } = await supabase
         .from('group_members')
         .select(`
@@ -71,12 +80,20 @@ export default async function DashboardPage() {
                     <div className="col-span-full rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
                         <div className="mb-6 flex items-center justify-between">
                             <h2 className="text-lg font-semibold text-zinc-800">Mis Grupos</h2>
-                            <Link
-                                href="/groups/create"
-                                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
-                            >
-                                + Nuevo Grupo
-                            </Link>
+                            <div className="flex gap-2">
+                                <Link
+                                    href="/dashboard/groups/join"
+                                    className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors shadow-sm"
+                                >
+                                    + Unirse a Grupo
+                                </Link>
+                                <Link
+                                    href="/dashboard/groups/create"
+                                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors shadow-sm"
+                                >
+                                    + Nuevo Grupo
+                                </Link>
+                            </div>
                         </div>
 
                         {userGroups.length === 0 ? (
@@ -87,7 +104,7 @@ export default async function DashboardPage() {
                                     </svg>
                                 </div>
                                 <p className="text-zinc-500">Aún no tienes grupos creados.</p>
-                                <Link href="/groups/create" className="mt-2 text-sm font-medium text-indigo-600 hover:underline">
+                                <Link href="/dashboard/groups/create" className="mt-2 text-sm font-medium text-indigo-600 hover:underline">
                                     Crea tu primer grupo ahora
                                 </Link>
                             </div>
@@ -96,7 +113,7 @@ export default async function DashboardPage() {
                                 {userGroups.map((group: any) => (
                                     <Link
                                         key={group.id}
-                                        href={`/groups/${group.id}`}
+                                        href={`/dashboard/groups/${group.id}`}
                                         className="block rounded-xl border border-zinc-200 p-4 transition-all hover:border-indigo-300 hover:shadow-md"
                                     >
                                         <h3 className="font-semibold text-zinc-800">{group.name}</h3>

@@ -25,13 +25,13 @@ export default async function LoginPage({
                     {/* H1 oculto visualmente pero disponible para SEO/Accesibilidad */}
                     <h1 className="sr-only">Splitar</h1>
 
-                    <p className="mt-4 text-sm text-zinc-600">{isForgot ? 'Recuperá tu contraseña' : 'Ingresá para gestionar tus grupos'}</p>
+                    <p className="mt-4 text-sm text-zinc-600 text-black">{isForgot ? 'Recuperá tu contraseña' : 'Ingresá para gestionar tus grupos'}</p>
                 </div>
 
                 {isForgot ? (
                     <form className="flex flex-col gap-5">
                         <div>
-                            <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="email">
+                            <label className="mb-1 block text-sm font-medium text-zinc-700 text-black" htmlFor="email">
                                 Correo electrónico
                             </label>
                             <input
@@ -40,7 +40,7 @@ export default async function LoginPage({
                                 type="email"
                                 placeholder="tu@email.com"
                                 required
-                                className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                                className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none text-black focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
                             />
                         </div>
 
