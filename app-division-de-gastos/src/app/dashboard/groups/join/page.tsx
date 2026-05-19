@@ -43,7 +43,7 @@ export default function JoinGroupPage({
                             type="text"
                             value={code}
                             onChange={handleInputChange}
-                            placeholder="EJ. BFUHCA"
+                            placeholder="Ejemplo: BFUHCA"
                             required
                             maxLength={6}
                             className="w-full rounded-xl border border-zinc-300 px-4 py-4 text-center font-mono text-2xl font-extrabold tracking-widest text-black outline-none placeholder:text-zinc-300 placeholder:font-sans focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all uppercase"
