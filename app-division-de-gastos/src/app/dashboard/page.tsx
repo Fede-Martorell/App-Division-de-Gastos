@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { calculateUserBalance, formatMoney } from '@/lib/balances'
+import { calculateGroupBalances, simplifyDebts, formatMoney } from '@/lib/balances'
 
 export default async function DashboardPage() {
     const supabase = await createClient()
@@ -34,14 +34,61 @@ export default async function DashboardPage() {
 
     const [{ data: allExpenses }, { data: allMembers }] = groupIds.length > 0
         ? await Promise.all([
-            supabase.from('expenses').select('amount, paid_by, group_id').in('group_id', groupIds),
+            supabase.from('expenses').select(`
+                group_id,
+                amount,
+                paid_by,
+                expense_splits (
+                    user_id,
+                    amount_owed
+                )
+            `).in('group_id', groupIds),
             supabase.from('group_members').select('group_id, user_id').in('group_id', groupIds),
         ])
         : [{ data: [] as any[] }, { data: [] as any[] }]
 
-    const balance = calculateUserBalance(user.id, allExpenses ?? [], allMembers ?? [])
-    const porCobrar = balance > 0 ? balance : 0
-    const porPagar = balance < 0 ? -balance : 0
+    // Agrupar miembros por grupo
+    const membersByGroup = new Map<string, string[]>()
+    for (const m of allMembers ?? []) {
+        if (!membersByGroup.has(m.group_id)) {
+            membersByGroup.set(m.group_id, [])
+        }
+        membersByGroup.get(m.group_id)!.push(m.user_id)
+    }
+
+    // Agrupar gastos y splits por grupo
+    const expensesByGroup = new Map<string, any[]>()
+    const splitsByGroup = new Map<string, any[]>()
+    for (const e of allExpenses ?? []) {
+        if (!expensesByGroup.has(e.group_id)) {
+            expensesByGroup.set(e.group_id, [])
+            splitsByGroup.set(e.group_id, [])
+        }
+        expensesByGroup.get(e.group_id)!.push({ amount: e.amount, paid_by: e.paid_by })
+        if (e.expense_splits) {
+            splitsByGroup.get(e.group_id)!.push(...(e.expense_splits as any[]))
+        }
+    }
+
+    let porCobrar = 0
+    let porPagar = 0
+
+    for (const groupId of groupIds) {
+        const groupMembers = membersByGroup.get(groupId) || []
+        const groupExpenses = expensesByGroup.get(groupId) || []
+        const groupSplits = splitsByGroup.get(groupId) || []
+
+        const balances = calculateGroupBalances(groupExpenses, groupSplits, groupMembers)
+        const settlements = simplifyDebts(balances)
+
+        for (const s of settlements) {
+            if (s.from === user.id) {
+                porPagar += s.amount
+            } else if (s.to === user.id) {
+                porCobrar += s.amount
+            }
+        }
+    }
 
     return (
         <div className="min-h-screen bg-zinc-50 p-6">
