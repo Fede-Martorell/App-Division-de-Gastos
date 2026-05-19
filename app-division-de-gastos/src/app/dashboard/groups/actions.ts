@@ -5,7 +5,6 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
 export async function createGroup(formData: FormData) {
-    console.log("=== INICIO DE ACCIÓN: createGroup ===");
     const supabase = await createClient()
 
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -14,17 +13,14 @@ export async function createGroup(formData: FormData) {
         console.error("ERROR DE SESIÓN:", userError);
         redirect('/login?error=Sesion+no+encontrada')
     }
-    console.log("USUARIO LOGUEADO:", { id: user.id, email: user.email });
 
     const name = formData.get('name') as string
     const description = formData.get('description') as string
     
     // Generar un código de invitación aleatorio único de 6 caracteres (ej: "A9F3X2")
     const invite_code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    console.log("DATOS RECIBIDOS DEL FORMULARIO:", { name, description, invite_code });
 
     // Asegurar que el usuario tenga un registro en la tabla 'profiles' para evitar violar la clave foránea
-    console.log("Asegurando que exista el perfil del usuario...");
     const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -39,7 +35,6 @@ export async function createGroup(formData: FormData) {
     }
 
     // 1. Crear el grupo
-    console.log("Insertando grupo en Supabase...");
     const { data: group, error: groupError } = await supabase
         .from('groups')
         .insert({
@@ -56,10 +51,8 @@ export async function createGroup(formData: FormData) {
         const errMsg = groupError?.message || "No se pudo crear el grupo";
         redirect(`/dashboard/groups/create?error=${encodeURIComponent(errMsg)}`)
     }
-    console.log("GRUPO CREADO EXITOSAMENTE:", group);
 
     // 2. Agregar al creador como miembro del grupo
-    console.log("Asignando creador como miembro admin...");
     const { error: memberError } = await supabase
         .from('group_members')
         .insert({
@@ -74,10 +67,6 @@ export async function createGroup(formData: FormData) {
         const errMsg = memberError?.message || "Grupo creado pero error al asignar miembro";
         redirect(`/dashboard/groups/create?error=${encodeURIComponent(errMsg)}`)
     }
-    console.log("MIEMBRO ASIGNADO CON ÉXITO.");
-
-    console.log("Revalidando path '/dashboard' y redirigiendo a:", `/dashboard/groups/${group.id}`);
-    console.log("=== FIN DE ACCIÓN: createGroup ===");
 
     revalidatePath('/dashboard')
     redirect(`/dashboard/groups/${group.id}`)

@@ -12,16 +12,10 @@ export default function CreateGroupPage({
     const { error } = use(searchParams)
 
     const handleSubmit = async (formData: FormData) => {
-        console.log("=== [CLIENTE] INICIO DE SUBMIT ===");
-        const name = formData.get('name');
-        const description = formData.get('description');
-        console.log("=== [CLIENTE] DATOS OBTENIDOS DEL FORMULARIO ===", { name, description });
-        
         try {
-            console.log("=== [CLIENTE] ENVIANDO DATOS A LA SERVER ACTION... ===");
             await createGroup(formData);
         } catch (err) {
-            console.error("=== [CLIENTE] ERROR AL EJECUTAR LA ACCIÓN ===", err);
+            console.error("Error al ejecutar la acción:", err);
         }
     };
 
