@@ -6,9 +6,9 @@ import { calculateGroupBalances, simplifyDebts, formatMoney } from '@/lib/balanc
 export default async function GroupDetailsPage({
     params,
 }: {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }) {
-    const { id } = params
+    const { id } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 

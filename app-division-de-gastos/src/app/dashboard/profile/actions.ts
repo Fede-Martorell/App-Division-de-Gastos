@@ -23,7 +23,6 @@ export async function updateProfile(formData: FormData) {
             full_name: fullName,
             cbu_alias: cbuAlias,
             email: user.email,
-            updated_at: new Date().toISOString(),
         })
 
     if (error) {

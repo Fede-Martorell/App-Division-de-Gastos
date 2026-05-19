@@ -1,10 +1,30 @@
-import { createGroup } from '../actions'
 
-export default async function CreateGroupPage({
+'use client'
+
+import { createGroup } from '../actions'
+import { use } from 'react'
+
+export default function CreateGroupPage({
     searchParams,
 }: {
-    searchParams: { error?: string }
+    searchParams: Promise<{ error?: string }>
 }) {
+    const { error } = use(searchParams)
+
+    const handleSubmit = async (formData: FormData) => {
+        console.log("=== [CLIENTE] INICIO DE SUBMIT ===");
+        const name = formData.get('name');
+        const description = formData.get('description');
+        console.log("=== [CLIENTE] DATOS OBTENIDOS DEL FORMULARIO ===", { name, description });
+        
+        try {
+            console.log("=== [CLIENTE] ENVIANDO DATOS A LA SERVER ACTION... ===");
+            await createGroup(formData);
+        } catch (err) {
+            console.error("=== [CLIENTE] ERROR AL EJECUTAR LA ACCIÓN ===", err);
+        }
+    };
+
     return (
         <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl ring-1 ring-zinc-200">
@@ -19,7 +39,7 @@ export default async function CreateGroupPage({
                     <p className="mt-1 text-sm text-zinc-500">Organiza tus gastos con amigos o familia</p>
                 </div>
 
-                <form className="flex flex-col gap-5">
+                <form action={handleSubmit} className="flex flex-col gap-5">
                     <div>
                         <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="name">
                             Nombre del Grupo
@@ -30,7 +50,7 @@ export default async function CreateGroupPage({
                             type="text"
                             placeholder="Ej. Viaje a Mendoza 🏔️"
                             required
-                            className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                            className="w-full rounded-lg border border-zinc-300 px-4 text-black py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
                         />
                     </div>
 
@@ -42,14 +62,14 @@ export default async function CreateGroupPage({
                             id="description"
                             name="description"
                             placeholder="Ej. Gastos de alojamiento, comida y combustible"
-                            className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                            className="w-full rounded-lg border border-zinc-300 text-black px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
                             rows={3}
                         />
                     </div>
 
-                    {searchParams?.error && (
+                    {error && (
                         <p className="text-sm font-medium text-red-500 bg-red-50 p-3 rounded-md">
-                            {searchParams.error}
+                            {error}
                         </p>
                     )}
 
@@ -61,7 +81,7 @@ export default async function CreateGroupPage({
                             Cancelar
                         </a>
                         <button
-                            formAction={createGroup}
+                            type="submit"
                             className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
                         >
                             Crear Grupo

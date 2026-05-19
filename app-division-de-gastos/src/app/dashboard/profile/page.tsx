@@ -3,8 +3,9 @@ import { updateProfile } from './actions'
 export default async function ProfilePage({
     searchParams,
 }: {
-    searchParams: { error?: string }
+    searchParams: Promise<{ error?: string }>
 }) {
+    const { error } = await searchParams
     return (
         <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl ring-1 ring-zinc-200">
@@ -50,9 +51,9 @@ export default async function ProfilePage({
                         />
                     </div>
 
-                    {searchParams?.error && (
+                    {error && (
                         <p className="text-sm font-medium text-red-500 bg-red-50 p-3 rounded-md">
-                            {searchParams.error}
+                            {error}
                         </p>
                     )}
 
