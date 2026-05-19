@@ -80,12 +80,20 @@ export default async function DashboardPage() {
                     <div className="col-span-full rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
                         <div className="mb-6 flex items-center justify-between">
                             <h2 className="text-lg font-semibold text-zinc-800">Mis Grupos</h2>
-                            <Link
-                                href="/dashboard/groups/create"
-                                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
-                            >
-                                + Nuevo Grupo
-                            </Link>
+                            <div className="flex gap-2">
+                                <Link
+                                    href="/dashboard/groups/join"
+                                    className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors shadow-sm"
+                                >
+                                    + Unirse a Grupo
+                                </Link>
+                                <Link
+                                    href="/dashboard/groups/create"
+                                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors shadow-sm"
+                                >
+                                    + Nuevo Grupo
+                                </Link>
+                            </div>
                         </div>
 
                         {userGroups.length === 0 ? (

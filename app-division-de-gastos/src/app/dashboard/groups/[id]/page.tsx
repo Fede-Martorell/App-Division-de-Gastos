@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { calculateGroupBalances, simplifyDebts, formatMoney } from '@/lib/balances'
+import { CopyButton } from '@/components/CopyButton'
 
 export default async function GroupDetailsPage({
     params,
@@ -99,6 +100,20 @@ export default async function GroupDetailsPage({
 
                     {/* Columna Izquierda: Miembros */}
                     <div className="col-span-1 space-y-6">
+                        {/* Código de Invitación */}
+                        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
+                            <h2 className="mb-3 text-sm font-semibold text-zinc-800 uppercase tracking-wider">Invitar amigos</h2>
+                            <p className="text-xs text-zinc-500 mb-4">
+                                Compartí este código de invitación para que otros puedan unirse a este grupo.
+                            </p>
+                            <div className="flex items-center justify-between rounded-xl bg-zinc-50 border border-zinc-200 p-3">
+                                <span className="font-mono text-lg font-bold tracking-widest text-zinc-800">
+                                    {group.invite_code}
+                                </span>
+                                <CopyButton text={group.invite_code} />
+                            </div>
+                        </div>
+
                         <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
                             <h2 className="mb-4 text-sm font-semibold text-zinc-800 uppercase tracking-wider">Miembros</h2>
                             <div className="space-y-4">
