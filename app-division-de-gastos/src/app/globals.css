@@ -22,7 +22,6 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
 
 /* Force all input text and placeholders to be black (equivalent to text-black) */
@@ -34,7 +33,32 @@ select {
 
 input::placeholder,
 textarea::placeholder {
-  color: #52525b !important; /* A dark zinc/gray color so it stands out but is still recognizable as a placeholder */
+  color: #52525b !important;
   opacity: 1 !important;
+}
+
+/* Premium Animations */
+@keyframes gradient-xy {
+  0%, 100% {
+    background-size: 400% 400%;
+    background-position: 0% 50%;
+  }
+  50% {
+    background-size: 400% 400%;
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-xy {
+  animation: gradient-xy 15s ease infinite;
+}
+
+/* Glassmorphism utility */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08), 0 0 20px rgba(0,0,0,0.03);
 }
 
