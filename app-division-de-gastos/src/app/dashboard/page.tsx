@@ -9,14 +9,23 @@ export default async function DashboardPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    // Asegurar que el usuario tenga un registro en la tabla 'profiles' para evitar violar la clave foránea en otras vistas
+    // Solo crear perfil si no existe aún — nunca sobreescribir el nombre editado por el usuario
     await supabase
         .from('profiles')
-        .upsert({
+        .insert({
             id: user.id,
             email: user.email,
             full_name: user.email?.split('@')[0] || 'Usuario'
-        }, { onConflict: 'id' })
+        })
+        .select()
+        .maybeSingle()
+
+    // Leer el nombre real del perfil (puede haber sido editado por el usuario)
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single()
 
     const { data: groups } = await supabase
         .from('group_members')
@@ -95,11 +104,11 @@ export default async function DashboardPage() {
             <div className="mx-auto max-w-5xl">
                 <header className="mb-8 flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-zinc-900">Hola, {user?.email?.split('@')[0]} 👋</h1>
+                        <h1 className="text-3xl font-bold text-zinc-900">Hola, {profile?.full_name || user?.email?.split('@')[0]} 👋</h1>
                         <p className="text-zinc-500">Gestiona tus gastos y cuentas con tus amigos</p>
                     </div>
                     <Link
-                        href="/profile"
+                        href="/dashboard/profile"
                         className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-200 hover:bg-zinc-50 transition-colors"
                     >
                         Mi Perfil

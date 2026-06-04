@@ -16,20 +16,23 @@ export async function createGroup(formData: FormData) {
 
     const name = formData.get('name') as string
     const description = formData.get('description') as string
-    
+
     // Generar un código de invitación aleatorio único de 6 caracteres (ej: "A9F3X2")
     const invite_code = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    // Asegurar que el usuario tenga un registro en la tabla 'profiles' para evitar violar la clave foránea
+    // Solo insertar perfil si no existe — nunca sobreescribir el nombre del usuario
     const { error: profileError } = await supabase
         .from('profiles')
-        .upsert({
+        .insert({
             id: user.id,
             email: user.email,
             full_name: user.email?.split('@')[0] || 'Usuario'
-        }, { onConflict: 'id' })
+        })
+        .select()
+        .maybeSingle()
 
-    if (profileError) {
+    // Ignorar error de duplicate key (perfil ya existe) — es el comportamiento esperado
+    if (profileError && profileError.code !== '23505') {
         console.error("ERROR AL ASEGURAR EL PERFIL DEL USUARIO:", profileError);
         redirect(`/dashboard/groups/create?error=${encodeURIComponent("Error al crear perfil en base de datos: " + profileError.message)}`)
     }
@@ -98,16 +101,19 @@ export async function joinGroupWithCode(formData: FormData) {
         redirect(`/dashboard/groups/join?error=Codigo+de+invitacion+invalido`)
     }
 
-    // Asegurar que el usuario tenga un registro en la tabla 'profiles' para evitar violar la clave foránea
+    // Solo insertar perfil si no existe — nunca sobreescribir el nombre del usuario
     const { error: profileError } = await supabase
         .from('profiles')
-        .upsert({
+        .insert({
             id: user.id,
             email: user.email,
             full_name: user.email?.split('@')[0] || 'Usuario'
-        }, { onConflict: 'id' })
+        })
+        .select()
+        .maybeSingle()
 
-    if (profileError) {
+    // Ignorar error de duplicate key (perfil ya existe) — es el comportamiento esperado
+    if (profileError && profileError.code !== '23505') {
         redirect(`/dashboard/groups/join?error=${encodeURIComponent("Error al crear perfil en base de datos: " + profileError.message)}`)
     }
 
@@ -142,3 +148,21 @@ export async function joinGroupWithCode(formData: FormData) {
     redirect(`/dashboard/groups/${group.id}`)
 }
 
+export async function markSplitAsPaid(splitId: string) {
+    const supabase = await createClient()
+
+    const { error } = await supabase
+        .from('expense_splits')
+        .update({
+            is_paid: true,
+            paid_at: new Date().toISOString()
+        })
+        .eq('id', splitId)
+
+    if (error) {
+        return { success: false, error: error.message }
+    }
+
+    revalidatePath('/dashboard')
+    return { success: true }
+}

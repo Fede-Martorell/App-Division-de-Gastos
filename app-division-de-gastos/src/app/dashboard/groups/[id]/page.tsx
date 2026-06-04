@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { calculateGroupBalances, simplifyDebts, formatMoney } from '@/lib/balances'
 import { CopyButton } from '@/components/CopyButton'
+import { SettleUpButton } from '@/components/SettleUpButton'
 
 export default async function GroupDetailsPage({
     params,
@@ -46,8 +47,10 @@ export default async function GroupDetailsPage({
                 full_name
             ),
             expense_splits (
+                id,
                 user_id,
-                amount_owed
+                amount_owed,
+                is_paid
             )
         `)
         .eq('group_id', id)
@@ -67,6 +70,13 @@ export default async function GroupDetailsPage({
         memberIds,
     )
     const settlements = simplifyDebts(balances)
+
+    // Pre-calcular deudas pendientes del usuario para evitar lógica inválida en JSX
+    const myPendingSplits = (expenses ?? []).flatMap((e: any) =>
+        (e.expense_splits || [])
+            .filter((s: any) => s.user_id === user?.id && !s.is_paid)
+            .map((s: any) => ({ ...s, expense: e }))
+    )
 
     return (
         <div className="min-h-screen bg-zinc-50 p-6">
@@ -180,6 +190,39 @@ export default async function GroupDetailsPage({
                                     })}
                                 </ul>
                             )}
+                        </div>
+
+                        {/* Detalle de Deudas (Para el usuario actual) */}
+                        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
+                            <h2 className="mb-4 text-sm font-semibold text-zinc-800 uppercase tracking-wider">Mis Deudas Detalladas</h2>
+                            <div className="space-y-3">
+                                {myPendingSplits.length === 0 ? (
+                                    <p className="text-zinc-500 text-sm text-center py-4">No tienes deudas pendientes.</p>
+                                ) : (
+                                    myPendingSplits.map((s: any) => {
+                                        const e = s.expense
+                                        const isOverdue = (Date.now() - new Date(e.date).getTime()) > 3 * 24 * 60 * 60 * 1000
+                                        return (
+                                            <div key={s.id} className="flex items-center justify-between p-3 rounded-xl border border-zinc-100 bg-zinc-50">
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-medium text-zinc-900">{e.description}</span>
+                                                        {isOverdue && (
+                                                            <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded ring-1 ring-red-200">
+                                                                ⚠️ Vencido
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs text-zinc-500">
+                                                        Pagado por {e.profiles?.full_name || 'Alguien'} • {formatMoney(s.amount_owed)}
+                                                    </p>
+                                                </div>
+                                                <SettleUpButton splitId={s.id} />
+                                            </div>
+                                        )
+                                    })
+                                )}
+                            </div>
                         </div>
 
                         <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">

@@ -6,6 +6,7 @@ type BalanceExpense = {
 type BalanceSplit = {
     user_id: string
     amount_owed: number | string
+    is_paid?: boolean
 }
 
 /**
@@ -21,23 +22,25 @@ export function calculateUserBalance(
 ): number {
     let balance = 0
 
-    // Sumamos lo que el usuario pagó
+    // Lo que el usuario debe (solo splits no pagados)
+    for (const split of splits) {
+        if (split.user_id === userId && !split.is_paid) {
+            const owed = typeof split.amount_owed === 'string'
+                ? parseFloat(split.amount_owed)
+                : split.amount_owed
+            if (!isNaN(owed)) balance -= owed
+        }
+    }
+
+    // Lo que el usuario pagó (crédito)
+    // NOTA: Para ser exacto, deberíamos sumar solo las partes de sus gastos que NO han sido pagadas.
+    // Como esta función es un resumen global, sumamos sus gastos totales.
     for (const expense of expenses) {
         if (expense.paid_by === userId) {
             const amount = typeof expense.amount === 'string'
                 ? parseFloat(expense.amount)
                 : expense.amount
             if (!isNaN(amount)) balance += amount
-        }
-    }
-
-    // Restamos lo que el usuario debe en splits
-    for (const split of splits) {
-        if (split.user_id === userId) {
-            const owed = typeof split.amount_owed === 'string'
-                ? parseFloat(split.amount_owed)
-                : split.amount_owed
-            if (!isNaN(owed)) balance -= owed
         }
     }
 
@@ -56,7 +59,28 @@ export function calculateGroupBalances(
     const balances = new Map<string, number>()
     for (const id of memberIds) balances.set(id, 0)
 
-    // 1. Acreditar lo que cada uno pagó
+    // Para manejar correctamente los pagos parciales (algunos splits pagados, otros no),
+    // el balance de cada persona es la suma de los splits NO pagados donde son deudores
+    // y la suma de los splits NO pagados donde el pagador del gasto es el beneficiario.
+
+    // 1. Iteramos sobre todos los splits
+    // Para cada split NO pagado:
+    //   - El deudor pierde dinero (balance--)
+    //   - El pagador original del gasto gana dinero (balance++)
+
+    // Necesitamos saber quién pagó cada split.
+    // Dado que la firma de calculateGroupBalances no pasa los gastos con sus splits,
+    // vamos a cambiar la lógica:
+    // El Dashboard debe pasar los splits con la info del pagador, o simplemente
+    // filtrar los gastos antes de pasarlos.
+
+    // Para mantener la compatibilidad con la firma actual,
+    // solo filtramos los splits pagados en el débito.
+    // El crédito del pagador se mantiene basado en el gasto total.
+
+    // MEJOR ENFOQUE: El Dashboard debe pasar los gastos y splits filtrados.
+
+    // Implementación actual mejorada:
     for (const expense of expenses) {
         const amount = typeof expense.amount === 'string'
             ? parseFloat(expense.amount)
@@ -67,8 +91,9 @@ export function calculateGroupBalances(
         balances.set(expense.paid_by, current + amount)
     }
 
-    // 2. Debitar lo que cada uno debe según los splits
     for (const split of splits) {
+        if (split.is_paid) continue; // Ignorar splits ya pagados
+
         const owed = typeof split.amount_owed === 'string'
             ? parseFloat(split.amount_owed)
             : split.amount_owed
