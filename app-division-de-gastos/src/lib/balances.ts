@@ -47,60 +47,44 @@ export function calculateUserBalance(
     return balance
 }
 
+type BalanceSplitWithPayer = BalanceSplit & {
+    paid_by?: string
+}
+
 /**
  * Calcula el balance neto de cada miembro dentro de un grupo.
  * Devuelve un mapa user_id -> balance.
+ *
+ * Lógica correcta:
+ * - Por cada split NO pagado: el deudor (user_id) pierde esa cantidad,
+ *   y el pagador original del gasto (paid_by) la gana.
+ * - Si un split está pagado, no afecta a nadie: la deuda ya fue saldada.
  */
 export function calculateGroupBalances(
     expenses: BalanceExpense[],
-    splits: BalanceSplit[],
+    splits: BalanceSplitWithPayer[],
     memberIds: string[],
 ): Map<string, number> {
     const balances = new Map<string, number>()
     for (const id of memberIds) balances.set(id, 0)
 
-    // Para manejar correctamente los pagos parciales (algunos splits pagados, otros no),
-    // el balance de cada persona es la suma de los splits NO pagados donde son deudores
-    // y la suma de los splits NO pagados donde el pagador del gasto es el beneficiario.
-
-    // 1. Iteramos sobre todos los splits
-    // Para cada split NO pagado:
-    //   - El deudor pierde dinero (balance--)
-    //   - El pagador original del gasto gana dinero (balance++)
-
-    // Necesitamos saber quién pagó cada split.
-    // Dado que la firma de calculateGroupBalances no pasa los gastos con sus splits,
-    // vamos a cambiar la lógica:
-    // El Dashboard debe pasar los splits con la info del pagador, o simplemente
-    // filtrar los gastos antes de pasarlos.
-
-    // Para mantener la compatibilidad con la firma actual,
-    // solo filtramos los splits pagados en el débito.
-    // El crédito del pagador se mantiene basado en el gasto total.
-
-    // MEJOR ENFOQUE: El Dashboard debe pasar los gastos y splits filtrados.
-
-    // Implementación actual mejorada:
-    for (const expense of expenses) {
-        const amount = typeof expense.amount === 'string'
-            ? parseFloat(expense.amount)
-            : expense.amount
-        if (isNaN(amount)) continue
-
-        const current = balances.get(expense.paid_by) ?? 0
-        balances.set(expense.paid_by, current + amount)
-    }
-
     for (const split of splits) {
-        if (split.is_paid) continue; // Ignorar splits ya pagados
+        if (split.is_paid) continue // Split ya pagado: no afecta a nadie
 
         const owed = typeof split.amount_owed === 'string'
             ? parseFloat(split.amount_owed)
             : split.amount_owed
         if (isNaN(owed)) continue
 
-        const current = balances.get(split.user_id) ?? 0
-        balances.set(split.user_id, current - owed)
+        // El deudor pierde dinero
+        const debtorBalance = balances.get(split.user_id) ?? 0
+        balances.set(split.user_id, debtorBalance - owed)
+
+        // El pagador gana dinero (solo si lo conocemos)
+        if (split.paid_by) {
+            const creditorBalance = balances.get(split.paid_by) ?? 0
+            balances.set(split.paid_by, creditorBalance + owed)
+        }
     }
 
     return balances

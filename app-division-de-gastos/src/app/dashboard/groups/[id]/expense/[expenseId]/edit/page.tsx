@@ -1,17 +1,16 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { createExpense } from '../actions'
-import { SubmitExpenseButton } from '@/components/SubmitExpenseButton'
+import { updateExpense } from '../../actions'
 
-export default async function CreateExpensePage({
+export default async function EditExpensePage({
     params,
     searchParams,
 }: {
-    params: Promise<{ id: string }>
+    params: Promise<{ id: string, expenseId: string }>
     searchParams: Promise<{ error?: string }>
 }) {
-    const { id } = await params
+    const { id: groupId, expenseId } = await params
     const { error } = await searchParams
     const supabase = await createClient()
 
@@ -26,25 +25,44 @@ export default async function CreateExpensePage({
                 full_name
             )
         `)
-        .eq('group_id', id)
+        .eq('group_id', groupId)
 
     if (!members?.some((m: any) => m.user_id === user.id)) {
         redirect('/dashboard?error=No+sos+miembro+de+ese+grupo')
     }
 
-    const today = new Date().toISOString().split('T')[0]
-    const createExpenseWithGroup = createExpense.bind(null, id)
+    // Obtener datos actuales del gasto
+    const { data: expense, error: expenseError } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('id', expenseId)
+        .eq('group_id', groupId)
+        .single()
+
+    if (expenseError || !expense) {
+        redirect('/dashboard?error=Gasto+no+encontrado')
+    }
+
+    // Obtener participantes actuales del gasto
+    const { data: currentSplits } = await supabase
+        .from('expense_splits')
+        .select('user_id')
+        .eq('expense_id', expenseId)
+
+    const currentParticipantIds = (currentSplits || []).map((s: any) => s.user_id)
+
+    const updateExpenseWithParams = updateExpense.bind(null, groupId, expenseId)
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl ring-1 ring-zinc-200">
 
                 <div className="mb-8 text-center">
-                    <h1 className="text-xl font-bold text-zinc-800">Nuevo Gasto</h1>
-                    <p className="mt-1 text-sm text-zinc-500">Registra un gasto del grupo</p>
+                    <h1 className="text-xl font-bold text-zinc-800">Editar Gasto</h1>
+                    <p className="mt-1 text-sm text-zinc-500">Modifica los detalles y participantes</p>
                 </div>
 
-                <form action={createExpenseWithGroup} className="flex flex-col gap-5">
+                <form action={updateExpenseWithParams} className="flex flex-col gap-5">
                     <div>
                         <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="description">
                             Descripción
@@ -53,6 +71,7 @@ export default async function CreateExpensePage({
                             id="description"
                             name="description"
                             type="text"
+                            defaultValue={expense.description}
                             placeholder="Ej. Cena del sábado 🍕"
                             required
                             className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
@@ -69,6 +88,7 @@ export default async function CreateExpensePage({
                             type="number"
                             step="0.01"
                             min="0.01"
+                            defaultValue={expense.amount}
                             placeholder="0.00"
                             required
                             className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
@@ -82,7 +102,7 @@ export default async function CreateExpensePage({
                         <select
                             id="paid_by"
                             name="paid_by"
-                            defaultValue={user.id}
+                            defaultValue={expense.paid_by}
                             required
                             className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
                         >
@@ -102,7 +122,7 @@ export default async function CreateExpensePage({
                             id="date"
                             name="date"
                             type="date"
-                            defaultValue={today}
+                            defaultValue={expense.date}
                             required
                             className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
                         />
@@ -119,7 +139,7 @@ export default async function CreateExpensePage({
                                         type="checkbox"
                                         name="participants"
                                         value={m.user_id}
-                                        defaultChecked={true}
+                                        defaultChecked={currentParticipantIds.includes(m.user_id)}
                                         className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
                                     />
                                     <span className="text-sm text-zinc-700 group-hover:text-zinc-900">
@@ -129,7 +149,7 @@ export default async function CreateExpensePage({
                             ))}
                         </div>
                         <p className="text-[10px] text-zinc-400 italic">
-                            Selecciona quiénes deben dividir este gasto.
+                            Puedes agregar o quitar personas para recalcular el gasto.
                         </p>
                     </div>
 
@@ -141,12 +161,17 @@ export default async function CreateExpensePage({
 
                     <div className="flex gap-3 mt-2">
                         <Link
-                            href={`/dashboard/groups/${id}`}
+                            href={`/dashboard/groups/${groupId}`}
                             className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-center text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
                         >
                             Cancelar
                         </Link>
-                        <SubmitExpenseButton />
+                        <button
+                            type="submit"
+                            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+                        >
+                            Actualizar Gasto
+                        </button>
                     </div>
                 </form>
             </div>

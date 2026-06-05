@@ -49,7 +49,8 @@ export default async function DashboardPage() {
                 paid_by,
                 expense_splits (
                     user_id,
-                    amount_owed
+                    amount_owed,
+                    is_paid
                 )
             `).in('group_id', groupIds),
             supabase.from('group_members').select('group_id, user_id').in('group_id', groupIds),
@@ -75,12 +76,16 @@ export default async function DashboardPage() {
         }
         expensesByGroup.get(e.group_id)!.push({ amount: e.amount, paid_by: e.paid_by })
         if (e.expense_splits) {
-            splitsByGroup.get(e.group_id)!.push(...(e.expense_splits as any[]))
+            // Incluir paid_by en cada split para que calculateGroupBalances
+            // pueda acreditar correctamente al pagador por split no pagado.
+            const splitsWithPayer = (e.expense_splits as any[]).map((s: any) => ({ ...s, paid_by: e.paid_by }))
+            splitsByGroup.get(e.group_id)!.push(...splitsWithPayer)
         }
     }
 
     let porCobrar = 0
     let porPagar = 0
+    const groupSummaries = new Map<string, { porCobrar: number, porPagar: number }>()
 
     for (const groupId of groupIds) {
         const groupMembers = membersByGroup.get(groupId) || []
@@ -90,13 +95,18 @@ export default async function DashboardPage() {
         const balances = calculateGroupBalances(groupExpenses, groupSplits, groupMembers)
         const settlements = simplifyDebts(balances)
 
+        let gCobrar = 0
+        let gPagar = 0
         for (const s of settlements) {
             if (s.from === user.id) {
+                gPagar += s.amount
                 porPagar += s.amount
             } else if (s.to === user.id) {
+                gCobrar += s.amount
                 porCobrar += s.amount
             }
         }
+        groupSummaries.set(groupId, { porCobrar: gCobrar, porPagar: gPagar })
     }
 
     return (
@@ -166,19 +176,30 @@ export default async function DashboardPage() {
                             </div>
                         ) : (
                             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                {userGroups.map((group: any) => (
-                                    <Link
-                                        key={group.id}
-                                        href={`/dashboard/groups/${group.id}`}
-                                        className="block rounded-xl border border-zinc-200 p-4 transition-all hover:border-indigo-300 hover:shadow-md"
-                                    >
-                                        <h3 className="font-semibold text-zinc-800">{group.name}</h3>
-                                        <p className="mt-1 truncate text-sm text-zinc-500">{group.description || 'Sin descripción'}</p>
-                                        <div className="mt-4 flex items-center justify-between">
-                                            <span className="text-xs font-medium text-indigo-600">Ver detalles →</span>
-                                        </div>
-                                    </Link>
-                                ))}
+                                {userGroups.map((group: any) => {
+                                    const summary = groupSummaries.get(group.id)
+                                    return (
+                                        <Link
+                                            key={group.id}
+                                            href={`/dashboard/groups/${group.id}`}
+                                            className="block rounded-xl border border-zinc-200 p-4 transition-all hover:border-indigo-300 hover:shadow-md"
+                                        >
+                                            <h3 className="font-semibold text-zinc-800">{group.name}</h3>
+                                            <p className="mt-1 truncate text-sm text-zinc-500">{group.description || 'Sin descripción'}</p>
+                                            <div className="mt-4 flex items-center justify-between border-t pt-3 border-zinc-100">
+                                                <span className="text-[10px] font-medium text-red-600">
+                                                    Debés: {formatMoney(summary?.porPagar || 0)}
+                                                </span>
+                                                <span className="text-[10px] font-medium text-emerald-600">
+                                                    Cobrás: {formatMoney(summary?.porCobrar || 0)}
+                                                </span>
+                                            </div>
+                                            <div className="mt-3 flex items-center justify-between">
+                                                <span className="text-xs font-medium text-indigo-600">Ver detalles →</span>
+                                            </div>
+                                        </Link>
+                                    )
+                                })}
                             </div>
                         )}
                     </div>

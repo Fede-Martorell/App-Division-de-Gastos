@@ -97,3 +97,16 @@ export async function resetPassword(formData: FormData) {
         redirect('/login?message=Email+de+recuperacion+enviado')
     })
 }
+
+export async function signOut() {
+    await wrapAction(async () => {
+        const supabase = await createClient()
+        const { error } = await supabase.auth.signOut()
+
+        if (error) {
+            redirect('/login?error=Error+al+cerrar+sesion')
+        }
+
+        redirect('/login')
+    })
+}

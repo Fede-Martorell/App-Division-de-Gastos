@@ -62,7 +62,11 @@ export default async function GroupDetailsPage({
     )
 
     // Extraer todos los splits de todos los gastos para el cálculo global
-    const allSplits = (expenses ?? []).flatMap((e: any) => e.expense_splits || [])
+    // Incluimos paid_by de cada gasto en su split para que calculateGroupBalances
+    // pueda acreditar correctamente al pagador por cada split no pagado.
+    const allSplits = (expenses ?? []).flatMap((e: any) =>
+        (e.expense_splits || []).map((s: any) => ({ ...s, paid_by: e.paid_by }))
+    )
 
     const balances = calculateGroupBalances(
         (expenses ?? []).map((e: any) => ({ amount: e.amount, paid_by: e.paid_by })),
@@ -217,7 +221,7 @@ export default async function GroupDetailsPage({
                                                         Pagado por {e.profiles?.full_name || 'Alguien'} • {formatMoney(s.amount_owed)}
                                                     </p>
                                                 </div>
-                                                <SettleUpButton splitId={s.id} />
+                                                <SettleUpButton splitId={s.id} groupId={id} />
                                             </div>
                                         )
                                     })
@@ -237,7 +241,7 @@ export default async function GroupDetailsPage({
                                     {expenses?.map((expense: any) => (
                                         <div
                                             key={expense.id}
-                                            className="flex items-center justify-between p-4 rounded-xl border border-zinc-100 bg-zinc-50 hover:bg-zinc-100 transition-colors"
+                                            className="group/item flex items-center justify-between p-4 rounded-xl border border-zinc-100 bg-zinc-50 hover:bg-zinc-100 transition-colors"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className="p-2 rounded-lg bg-white ring-1 ring-zinc-200">
@@ -245,18 +249,30 @@ export default async function GroupDetailsPage({
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.68 1.005A2.997 2.997 0 0112 8 2.997 2.997 0 017.32 7.005C8.12 6.407 9.09 6 10.12 6z" />
                                                     </svg>
                                                 </div>
-                                                <div>
+                                                <div className="relative">
                                                     <p className="text-sm font-semibold text-zinc-900">{expense.description}</p>
                                                     <p className="text-xs text-zinc-500">
                                                         Pagado por <span className="font-medium">{expense.profiles?.full_name || 'Alguien'}</span>
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-sm font-bold text-zinc-900">${expense.amount}</p>
-                                                <p className="text-[10px] text-zinc-400">
-                                                    {new Date(expense.date).toLocaleDateString()}
-                                                </p>
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right">
+                                                    <p className="text-sm font-bold text-zinc-900">${expense.amount}</p>
+                                                    <p className="text-[10px] text-zinc-400">
+                                                        {new Date(expense.date).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                                <Link
+                                                    href={`/dashboard/groups/${id}/expense/${expense.id}/edit`}
+                                                    className="p-2 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-white ring-1 ring-transparent hover:ring-zinc-200 transition-all"
+                                                    title="Editar gasto"
+                                                >
+                                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4.5-4.5 1.5-1.5 4.5-4.5 1.5 1.5z" />
+                                                    </svg>
+                                                    <span className="sr-only">Editar</span>
+                                                </Link>
                                             </div>
                                         </div>
                                     ))}

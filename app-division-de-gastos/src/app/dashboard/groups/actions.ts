@@ -148,21 +148,62 @@ export async function joinGroupWithCode(formData: FormData) {
     redirect(`/dashboard/groups/${group.id}`)
 }
 
-export async function markSplitAsPaid(splitId: string) {
+export async function markSplitAsPaid(splitId: string, groupId: string) {
     const supabase = await createClient()
 
-    const { error } = await supabase
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+        return { ok: false, error: 'Inicia sesion para saldar esta deuda.' }
+    }
+
+    // Verificar que el split sea del usuario actual y del grupo abierto.
+    const { data: split, error: fetchError } = await supabase
+        .from('expense_splits')
+        .select(`
+            id,
+            user_id,
+            is_paid,
+            expenses!inner (
+                group_id
+            )
+        `)
+        .eq('id', splitId)
+        .eq('user_id', user.id)
+        .eq('expenses.group_id', groupId)
+        .maybeSingle()
+
+    if (fetchError || !split) {
+        console.error('Split no encontrado:', fetchError)
+        return { ok: false, error: 'No se encontro esa deuda pendiente.' }
+    }
+
+    if (split.is_paid) {
+        revalidatePath('/dashboard')
+        revalidatePath(`/dashboard/groups/${groupId}`)
+        return { ok: true }
+    }
+
+    const paidAt = new Date().toISOString()
+    const { error, data } = await supabase
         .from('expense_splits')
         .update({
             is_paid: true,
-            paid_at: new Date().toISOString()
+            is_settled: true,
+            paid_at: paidAt,
         })
         .eq('id', splitId)
+        .eq('user_id', user.id)
+        .select()
+        .maybeSingle()
 
-    if (error) {
-        return { success: false, error: error.message }
+    if (error || !data) {
+        console.error('ERROR al actualizar split:', JSON.stringify(error))
+        return { ok: false, error: 'No se pudo saldar la deuda. Proba de nuevo.' }
     }
 
+    console.log('Split actualizado correctamente:', data)
+
     revalidatePath('/dashboard')
-    return { success: true }
+    revalidatePath(`/dashboard/groups/${groupId}`)
+    return { ok: true }
 }

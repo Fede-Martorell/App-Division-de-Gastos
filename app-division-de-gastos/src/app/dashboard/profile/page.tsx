@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { updateProfile } from './actions'
+import { signOut } from '@/app/(auth)/actions'
 
 export default async function ProfilePage({
     searchParams,
@@ -72,18 +73,31 @@ export default async function ProfilePage({
                         </p>
                     )}
 
-                    <button
-                        formAction={updateProfile}
-                        className="mt-2 w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
-                    >
-                        Guardar Perfil
-                    </button>
+                    <div className="flex gap-3 mt-2">
+                        <a
+                            href="/dashboard"
+                            className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-center text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+                        >
+                            Inicio
+                        </a>
+                        <button
+                            formAction={updateProfile}
+                            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+                        >
+                            Guardar Perfil
+                        </button>
+                    </div>
                 </form>
 
                 <div className="mt-6 text-center">
-                    <a href="/login" className="text-sm font-medium text-zinc-500 hover:text-indigo-600 transition-colors">
-                        Cerrar sesión
-                    </a>
+                    <form action={signOut}>
+                        <button
+                            type="submit"
+                            className="text-sm font-medium text-zinc-500 hover:text-indigo-600 transition-colors"
+                        >
+                            Cerrar sesión
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
