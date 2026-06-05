@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { calculateGroupBalances, simplifyDebts, formatMoney } from '@/lib/balances'
 import { CopyButton } from '@/components/CopyButton'
+import { CopyLinkButton } from '@/components/CopyLinkButton'
 import { SettleUpButton } from '@/components/SettleUpButton'
 
 export default async function GroupDetailsPage({
@@ -120,11 +121,19 @@ export default async function GroupDetailsPage({
                             <p className="text-xs text-zinc-500 mb-4">
                                 Compartí este código de invitación para que otros puedan unirse a este grupo.
                             </p>
-                            <div className="flex items-center justify-between rounded-xl bg-zinc-50 border border-zinc-200 p-3">
-                                <span className="font-mono text-lg font-bold tracking-widest text-zinc-800">
-                                    {group.invite_code}
-                                </span>
-                                <CopyButton text={group.invite_code} />
+                            <div className="flex flex-col gap-3">
+                                <div className="flex items-center justify-between rounded-xl bg-zinc-50 border border-zinc-200 p-3">
+                                    <span className="font-mono text-lg font-bold tracking-widest text-zinc-800">
+                                        {group.invite_code}
+                                    </span>
+                                    <CopyButton text={group.invite_code} />
+                                </div>
+                                <div className="relative flex items-center py-2">
+                                    <div className="flex-grow border-t border-zinc-200"></div>
+                                    <span className="flex-shrink-0 mx-4 text-zinc-400 text-xs">o</span>
+                                    <div className="flex-grow border-t border-zinc-200"></div>
+                                </div>
+                                <CopyLinkButton code={group.invite_code} />
                             </div>
                         </div>
 

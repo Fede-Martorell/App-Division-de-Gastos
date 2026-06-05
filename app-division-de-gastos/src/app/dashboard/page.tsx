@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { calculateGroupBalances, simplifyDebts, formatMoney } from '@/lib/balances'
+import { NotificationsDropdown } from '@/components/NotificationsDropdown'
 
 export default async function DashboardPage() {
     const supabase = await createClient()
@@ -41,7 +42,7 @@ export default async function DashboardPage() {
     const userGroups = (groups?.map(g => g.groups) || []) as any[]
     const groupIds = userGroups.map((g: any) => g?.id).filter(Boolean)
 
-    const [{ data: allExpenses }, { data: allMembers }] = groupIds.length > 0
+    const [{ data: allExpenses }, { data: allMembers }, { data: notifications }] = groupIds.length > 0
         ? await Promise.all([
             supabase.from('expenses').select(`
                 group_id,
@@ -54,8 +55,13 @@ export default async function DashboardPage() {
                 )
             `).in('group_id', groupIds),
             supabase.from('group_members').select('group_id, user_id').in('group_id', groupIds),
+            supabase.from('notifications')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(20)
         ])
-        : [{ data: [] as any[] }, { data: [] as any[] }]
+        : [{ data: [] as any[] }, { data: [] as any[] }, { data: [] as any[] }]
 
     // Agrupar miembros por grupo
     const membersByGroup = new Map<string, string[]>()
@@ -117,12 +123,15 @@ export default async function DashboardPage() {
                         <h1 className="text-3xl font-bold text-zinc-900">Hola, {profile?.full_name || user?.email?.split('@')[0]} 👋</h1>
                         <p className="text-zinc-500">Gestiona tus gastos y cuentas con tus amigos</p>
                     </div>
-                    <Link
-                        href="/dashboard/profile"
-                        className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-200 hover:bg-zinc-50 transition-colors"
-                    >
-                        Mi Perfil
-                    </Link>
+                    <div className="flex items-center gap-4">
+                        <NotificationsDropdown initialNotifications={notifications || []} />
+                        <Link
+                            href="/dashboard/profile"
+                            className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-200 hover:bg-zinc-50 transition-colors"
+                        >
+                            Mi Perfil
+                        </Link>
+                    </div>
                 </header>
 
                 <div className="grid gap-6 md:grid-cols-3">
