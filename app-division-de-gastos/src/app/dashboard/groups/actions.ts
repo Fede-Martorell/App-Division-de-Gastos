@@ -163,8 +163,11 @@ export async function markSplitAsPaid(splitId: string, groupId: string) {
             id,
             user_id,
             is_paid,
+            amount_owed,
             expenses!inner (
-                group_id
+                group_id,
+                paid_by,
+                description
             )
         `)
         .eq('id', splitId)
@@ -199,6 +202,29 @@ export async function markSplitAsPaid(splitId: string, groupId: string) {
     if (error || !data) {
         console.error('ERROR al actualizar split:', JSON.stringify(error))
         return { ok: false, error: 'No se pudo saldar la deuda. Proba de nuevo.' }
+    }
+
+    // Insertar notificacion para el acreedor
+    // Para ello averiguamos el nombre del deudor (el usuario actual)
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .maybeSingle()
+
+    const debtorName = profile?.full_name || 'Alguien'
+    // El objeto 'expenses' devuelto en la query puede ser un array si no se tipeó explícitamente, tomamos el primer elemento o el objeto directo
+    const expenseData: any = Array.isArray(split.expenses) ? split.expenses[0] : split.expenses
+
+    if (expenseData?.paid_by && expenseData.paid_by !== user.id) {
+        const { error: notifError } = await supabase.from('notifications').insert({
+            user_id: expenseData.paid_by,
+            group_id: groupId,
+            title: 'Deuda saldada',
+            message: `${debtorName} te ha pagado su parte de $${split.amount_owed} por el gasto "${expenseData.description}".`,
+            is_read: false
+        })
+        if (notifError) console.error('Error al insertar notificacion:', notifError)
     }
 
     console.log('Split actualizado correctamente:', data)

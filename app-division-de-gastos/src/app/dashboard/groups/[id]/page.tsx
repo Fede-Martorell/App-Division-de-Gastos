@@ -43,7 +43,14 @@ export default async function GroupDetailsPage({
     const { data: expenses, error: expensesError } = await supabase
         .from('expenses')
         .select(`
-            *,
+            id,
+            group_id,
+            paid_by,
+            description,
+            amount,
+            category,
+            date,
+            created_at,
             profiles!paid_by (
                 full_name
             ),
@@ -51,7 +58,8 @@ export default async function GroupDetailsPage({
                 id,
                 user_id,
                 amount_owed,
-                is_paid
+                is_paid,
+                paid_at
             )
         `)
         .eq('group_id', id)
@@ -82,6 +90,58 @@ export default async function GroupDetailsPage({
             .filter((s: any) => s.user_id === user?.id && !s.is_paid)
             .map((s: any) => ({ ...s, expense: e }))
     )
+
+    const activities: any[] = []
+    
+    ;(expenses ?? []).forEach((expense: any) => {
+        // Gasto creado
+        activities.push({
+            type: 'expense_created',
+            id: `exp-${expense.id}`,
+            date: expense.created_at || expense.date,
+            icon: (
+                <div className="p-2 rounded-lg bg-white ring-1 ring-zinc-200">
+                    <svg className="h-5 w-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.68 1.005A2.997 2.997 0 0112 8 2.997 2.997 0 017.32 7.005C8.12 6.407 9.09 6 10.12 6z" />
+                    </svg>
+                </div>
+            ),
+            title: expense.description,
+            subtitle: `Pagado por <span class='font-medium'>${expense.profiles?.full_name || 'Alguien'}</span>`,
+            amount: expense.amount,
+            amountColor: 'text-zinc-900',
+            originalDate: expense.date,
+            editLink: `/dashboard/groups/${id}/expense/${expense.id}/edit`
+        })
+
+        // Pagos saldados
+        ;(expense.expense_splits || []).forEach((split: any) => {
+            if (split.is_paid && split.paid_at) {
+                const debtorName = nameById.get(split.user_id) || 'Usuario'
+                activities.push({
+                    type: 'split_paid',
+                    id: `split-${split.id}`,
+                    date: split.paid_at,
+                    icon: (
+                        <div className="p-2 rounded-lg bg-indigo-50 ring-1 ring-indigo-200">
+                            <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                    ),
+                    title: `Pago de ${debtorName}`,
+                    subtitle: `Deuda de "${expense.description}"`,
+                    amount: split.amount_owed,
+                    amountColor: 'text-indigo-600',
+                    originalDate: null,
+                    editLink: null
+                })
+            }
+        })
+    })
+
+    // Sort descending by date
+    activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
     return (
         <div className="min-h-screen bg-zinc-50 p-6">
@@ -239,49 +299,48 @@ export default async function GroupDetailsPage({
                         </div>
 
                         <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
-                            <h2 className="mb-4 text-sm font-semibold text-zinc-800 uppercase tracking-wider">Historial de Gastos</h2>
+                            <h2 className="mb-4 text-sm font-semibold text-zinc-800 uppercase tracking-wider">Movimientos del Grupo</h2>
 
-                            {expenses?.length === 0 ? (
+                            {activities.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                                    <p className="text-zinc-500 text-sm">Aún no hay gastos registrados en este grupo.</p>
+                                    <p className="text-zinc-500 text-sm">Aún no hay movimientos registrados en este grupo.</p>
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {expenses?.map((expense: any) => (
+                                    {activities.map((activity: any) => (
                                         <div
-                                            key={expense.id}
+                                            key={activity.id}
                                             className="group/item flex items-center justify-between p-4 rounded-xl border border-zinc-100 bg-zinc-50 hover:bg-zinc-100 transition-colors"
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="p-2 rounded-lg bg-white ring-1 ring-zinc-200">
-                                                    <svg className="h-5 w-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.68 1.005A2.997 2.997 0 0112 8 2.997 2.997 0 017.32 7.005C8.12 6.407 9.09 6 10.12 6z" />
-                                                    </svg>
-                                                </div>
+                                                {activity.icon}
                                                 <div className="relative">
-                                                    <p className="text-sm font-semibold text-zinc-900">{expense.description}</p>
-                                                    <p className="text-xs text-zinc-500">
-                                                        Pagado por <span className="font-medium">{expense.profiles?.full_name || 'Alguien'}</span>
-                                                    </p>
+                                                    <p className="text-sm font-semibold text-zinc-900">{activity.title}</p>
+                                                    <p className="text-xs text-zinc-500" dangerouslySetInnerHTML={{ __html: activity.subtitle }} />
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 <div className="text-right">
-                                                    <p className="text-sm font-bold text-zinc-900">${expense.amount}</p>
+                                                    <p className={`text-sm font-bold ${activity.amountColor}`}>${activity.amount}</p>
                                                     <p className="text-[10px] text-zinc-400">
-                                                        {new Date(expense.date).toLocaleDateString()}
+                                                        {new Date(activity.date).toLocaleDateString()}
                                                     </p>
                                                 </div>
-                                                <Link
-                                                    href={`/dashboard/groups/${id}/expense/${expense.id}/edit`}
-                                                    className="p-2 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-white ring-1 ring-transparent hover:ring-zinc-200 transition-all"
-                                                    title="Editar gasto"
-                                                >
-                                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4.5-4.5 1.5-1.5 4.5-4.5 1.5 1.5z" />
-                                                    </svg>
-                                                    <span className="sr-only">Editar</span>
-                                                </Link>
+                                                {activity.editLink && (
+                                                    <Link
+                                                        href={activity.editLink}
+                                                        className="p-2 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-white ring-1 ring-transparent hover:ring-zinc-200 transition-all"
+                                                        title="Editar gasto"
+                                                    >
+                                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4.5-4.5 1.5-1.5 4.5-4.5 1.5 1.5z" />
+                                                        </svg>
+                                                        <span className="sr-only">Editar</span>
+                                                    </Link>
+                                                )}
+                                                {!activity.editLink && (
+                                                    <div className="w-8"></div> /* Placeholder for alignment */
+                                                )}
                                             </div>
                                         </div>
                                     ))}
