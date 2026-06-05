@@ -70,6 +70,21 @@ export async function createExpense(groupId: string, formData: FormData) {
         redirect(`/dashboard/groups/${groupId}/expense/create?error=Error+al+calcular+divisiones`)
     }
 
+    // 3. Crear notificaciones para los deudores (excluyendo al creador del gasto)
+    const notifications = participants
+        .filter(userId => userId !== user.id)
+        .map(userId => ({
+            user_id: userId,
+            group_id: groupId,
+            title: 'Nuevo Gasto',
+            message: `Se te asignó una parte del gasto "${description}" por $${splitAmount.toFixed(2)}.`
+        }))
+
+    if (notifications.length > 0) {
+        // Ignoramos el error intencionalmente para no bloquear la creación del gasto
+        await supabase.from('notifications').insert(notifications)
+    }
+
     revalidatePath(`/dashboard/groups/${groupId}`)
     redirect(`/dashboard/groups/${groupId}`)
 }
