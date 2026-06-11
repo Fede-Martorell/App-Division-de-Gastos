@@ -9,36 +9,27 @@ export default async function DashboardPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    // Solo crear perfil si no existe aún — nunca sobreescribir el nombre editado por el usuario
-    await supabase
-        .from('profiles')
-        .insert({
-            id: user.id,
-            email: user.email,
-            full_name: user.email?.split('@')[0] || 'Usuario'
-        })
-        .select()
-        .maybeSingle()
+    const [profileRes, groupsRes] = await Promise.all([
+        supabase.from('profiles').select('full_name').eq('id', user.id).single(),
+        supabase.from('group_members').select(`groups (id, name, description)`).eq('user_id', user.id)
+    ])
 
-    // Leer el nombre real del perfil (puede haber sido editado por el usuario)
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single()
+    let profile = profileRes.data
+    if (profileRes.error || !profile) {
+        // Solo crear perfil si no existe aún
+        const insertRes = await supabase
+            .from('profiles')
+            .insert({
+                id: user.id,
+                email: user.email,
+                full_name: user.email?.split('@')[0] || 'Usuario'
+            })
+            .select('full_name')
+            .maybeSingle()
+        profile = insertRes.data
+    }
 
-    const { data: groups } = await supabase
-        .from('group_members')
-        .select(`
-            groups (
-                id,
-                name,
-                description
-            )
-        `)
-        .eq('user_id', user.id)
-
-    const userGroups = (groups?.map(g => g.groups) || []) as any[]
+    const userGroups = (groupsRes.data?.map(g => g.groups) || []) as any[]
     const groupIds = userGroups.map((g: any) => g?.id).filter(Boolean)
 
     const [{ data: allExpenses }, { data: allMembers }] = groupIds.length > 0

@@ -15,34 +15,22 @@ export default async function GroupDetailsPage({
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    // 1. Obtener info del grupo y verificar que el usuario sea miembro
-    const { data: group, error: groupError } = await supabase
-        .from('groups')
-        .select('*')
-        .eq('id', id)
-        .single()
-
-    if (groupError || !group) {
-        redirect('/dashboard')
-    }
-
-    // 2. Obtener miembros del grupo con sus perfiles
-    const { data: members, error: membersError } = await supabase
-        .from('group_members')
-        .select(`
+    // Obtener info del grupo, miembros y gastos en paralelo
+    const [
+        { data: group, error: groupError },
+        { data: members },
+        { data: expenses }
+    ] = await Promise.all([
+        supabase.from('groups').select('*').eq('id', id).single(),
+        supabase.from('group_members').select(`
             user_id,
             role,
             profiles (
                 full_name,
                 cbu_alias
             )
-        `)
-        .eq('group_id', id)
-
-    // 3. Obtener gastos del grupo y sus splits
-    const { data: expenses, error: expensesError } = await supabase
-        .from('expenses')
-        .select(`
+        `).eq('group_id', id),
+        supabase.from('expenses').select(`
             id,
             group_id,
             paid_by,
@@ -61,9 +49,12 @@ export default async function GroupDetailsPage({
                 is_paid,
                 paid_at
             )
-        `)
-        .eq('group_id', id)
-        .order('date', { ascending: false })
+        `).eq('group_id', id).order('date', { ascending: false })
+    ])
+
+    if (groupError || !group) {
+        redirect('/dashboard')
+    }
 
     const memberIds = (members ?? []).map((m: any) => m.user_id)
     const nameById = new Map<string, string>(
