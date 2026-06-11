@@ -233,3 +233,5 @@ export async function markSplitAsPaid(splitId: string, groupId: string) {
     revalidatePath(`/dashboard/groups/${groupId}`)
     return { ok: true }
 }
+
+// (Keep the rest of the file as it was, removing only the getSettleUpDetails function)
