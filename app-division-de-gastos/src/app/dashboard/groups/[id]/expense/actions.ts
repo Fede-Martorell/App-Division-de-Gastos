@@ -29,6 +29,7 @@ export async function createExpense(groupId: string, formData: FormData) {
     const amount = parseFloat(amountRaw)
     const paidBy = formData.get('paid_by') as string
     const date = formData.get('date') as string
+    const currency = (formData.get('currency') as string) || 'ARS'
     const participants = formData.getAll('participants') as string[]
     const splitType = formData.get('split_type') as string
 
@@ -45,6 +46,7 @@ export async function createExpense(groupId: string, formData: FormData) {
             amount,
             paid_by: paidBy,
             date,
+            currency,
         })
         .select()
         .single()
@@ -129,6 +131,7 @@ export async function updateExpense(groupId: string, expenseId: string, formData
     const amount = parseFloat(amountRaw)
     const paidBy = formData.get('paid_by') as string
     const date = formData.get('date') as string
+    const currency = (formData.get('currency') as string) || 'ARS'
     const participants = formData.getAll('participants') as string[]
     const splitType = formData.get('split_type') as string
 
@@ -144,6 +147,7 @@ export async function updateExpense(groupId: string, expenseId: string, formData
             amount,
             paid_by: paidBy,
             date,
+            currency,
         })
         .eq('id', expenseId)
         .eq('group_id', groupId)

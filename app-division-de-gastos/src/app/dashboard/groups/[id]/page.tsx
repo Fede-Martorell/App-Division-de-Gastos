@@ -62,18 +62,28 @@ export default async function GroupDetailsPage({
     )
 
     // Extraer todos los splits de todos los gastos para el cálculo global
-    // Incluimos paid_by de cada gasto en su split para que calculateGroupBalances
-    // pueda acreditar correctamente al pagador por cada split no pagado.
+    // Incluimos paid_by y currency de cada gasto en su split
     const allSplits = (expenses ?? []).flatMap((e: any) =>
-        (e.expense_splits || []).map((s: any) => ({ ...s, paid_by: e.paid_by }))
+        (e.expense_splits || []).map((s: any) => ({ ...s, paid_by: e.paid_by, currency: e.currency || 'ARS' }))
     )
 
-    const balances = calculateGroupBalances(
-        (expenses ?? []).map((e: any) => ({ amount: e.amount, paid_by: e.paid_by })),
-        allSplits,
-        memberIds,
-    )
-    const settlements = simplifyDebts(balances)
+    // Calcular balances y simplificaciones por moneda
+    const currencies = Array.from(new Set((expenses ?? []).map((e: any) => e.currency || 'ARS')))
+    const currencyData = currencies.map(currency => {
+        const currencyExpenses = (expenses ?? []).filter((e: any) => (e.currency || 'ARS') === currency)
+        const currencySplits = allSplits.filter(s => s.currency === currency)
+
+        const balances = calculateGroupBalances(
+            currencyExpenses.map((e: any) => ({ amount: e.amount, paid_by: e.paid_by })),
+            currencySplits,
+            memberIds,
+        )
+
+        return {
+            currency,
+            settlements: simplifyDebts(balances)
+        }
+    })
 
     // Pre-calcular deudas pendientes del usuario para evitar lógica inválida en JSX
     const myPendingSplits = (expenses ?? []).flatMap((e: any) =>
@@ -83,7 +93,7 @@ export default async function GroupDetailsPage({
     )
 
     const activities: any[] = []
-    
+
     ;(expenses ?? []).forEach((expense: any) => {
         activities.push({
             type: 'expense_created',
@@ -92,6 +102,7 @@ export default async function GroupDetailsPage({
             title: expense.description,
             paidBy: expense.profiles?.full_name || 'Alguien',
             amount: expense.amount,
+            currency: expense.currency || 'ARS',
             originalDate: expense.date,
             editLink: `/dashboard/groups/${id}/expense/${expense.id}/edit`
         })
@@ -106,6 +117,7 @@ export default async function GroupDetailsPage({
                     title: `Pago de ${debtorName}`,
                     paidBy: `Deuda de "${expense.description}"`,
                     amount: split.amount_owed,
+                    currency: expense.currency || 'ARS',
                     originalDate: null,
                     editLink: null
                 })
@@ -184,40 +196,52 @@ export default async function GroupDetailsPage({
                     {/* Saldos pendientes */}
                     <div style={{ background: 'var(--glass)', border: '1px solid var(--glass-border)', borderRadius: '16px', padding: '24px' }}>
                         <h2 style={{ color: 'var(--foreground)', fontWeight: 700, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Saldos pendientes</h2>
-                        {settlements.length === 0 ? (
+
+                        {currencyData.every(c => c.settlements.length === 0) ? (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px', textAlign: 'center', borderRadius: '12px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
                                 <span style={{ fontSize: '24px', marginBottom: '8px' }}>🎉</span>
                                 <p style={{ color: '#10b981', fontWeight: 600, fontSize: '14px' }}>Todos los saldos están al día.</p>
                             </div>
                         ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {settlements.map((s, idx) => {
-                                    const fromName = nameById.get(s.from) || 'Usuario'
-                                    const toName = nameById.get(s.to) || 'Usuario'
-                                    const isUserDebtor = user?.id === s.from
-                                    const isUserCreditor = user?.id === s.to
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                {currencyData.map(({ currency, settlements }) => (
+                                    <div key={currency}>
+                                        {settlements.length > 0 && (
+                                            <>
+                                                <h3 style={{ color: 'var(--foreground)', fontSize: '12px', fontWeight: 700, marginBottom: '12px', textTransform: 'uppercase', opacity: 0.6 }}>{currency}</h3>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                    {settlements.map((s, idx) => {
+                                                        const fromName = nameById.get(s.from) || 'Usuario'
+                                                        const toName = nameById.get(s.to) || 'Usuario'
+                                                        const isUserDebtor = user?.id === s.from
+                                                        const isUserCreditor = user?.id === s.to
 
-                                    let bgColor = 'rgba(255,255,255,0.03)'
-                                    let borderColor = 'rgba(255,255,255,0.06)'
-                                    let textColor = 'var(--foreground)'
-                                    if (isUserCreditor) {
-                                        bgColor = 'rgba(16,185,129,0.08)'
-                                        borderColor = 'rgba(16,185,129,0.2)'
-                                        textColor = '#10b981'
-                                    } else if (isUserDebtor) {
-                                        bgColor = 'rgba(244,63,94,0.08)'
-                                        borderColor = 'rgba(244,63,94,0.2)'
-                                        textColor = '#f43f5e'
-                                    }
+                                                        let bgColor = 'rgba(255,255,255,0.03)'
+                                                        let borderColor = 'rgba(255,255,255,0.06)'
+                                                        let textColor = 'var(--foreground)'
+                                                        if (isUserCreditor) {
+                                                            bgColor = 'rgba(16,185,129,0.08)'
+                                                            borderColor = 'rgba(16,185,129,0.2)'
+                                                            textColor = '#10b981'
+                                                        } else if (isUserDebtor) {
+                                                            bgColor = 'rgba(244,63,94,0.08)'
+                                                            borderColor = 'rgba(244,63,94,0.2)'
+                                                            textColor = '#f43f5e'
+                                                        }
 
-                                    return (
-                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: '12px', background: bgColor, border: `1px solid ${borderColor}`, fontSize: '14px', fontWeight: 500, color: textColor }}>
-                                            {isUserDebtor && <span>Le debés <strong>{formatMoney(s.amount)}</strong> a <strong>{toName}</strong></span>}
-                                            {isUserCreditor && <span><strong>{fromName}</strong> te debe <strong>{formatMoney(s.amount)}</strong></span>}
-                                            {!isUserDebtor && !isUserCreditor && <span><strong>{fromName}</strong> le debe <strong>{formatMoney(s.amount)}</strong> a <strong>{toName}</strong></span>}
-                                        </div>
-                                    )
-                                })}
+                                                        return (
+                                                            <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: '12px', background: bgColor, border: `1px solid ${borderColor}`, fontSize: '14px', fontWeight: 500, color: textColor }}>
+                                                                {isUserDebtor && <span>Le debés <strong style={{ color: 'inherit' }}>{formatMoney(s.amount, currency)}</strong> a <strong style={{ color: 'inherit' }}>{toName}</strong></span>}
+                                                                {isUserCreditor && <span><strong style={{ color: 'inherit' }}>{fromName}</strong> te debe <strong style={{ color: 'inherit' }}>{formatMoney(s.amount, currency)}</strong></span>}
+                                                                {!isUserDebtor && !isUserCreditor && <span><strong style={{ color: 'inherit' }}>{fromName}</strong> le debe <strong style={{ color: 'inherit' }}>{formatMoney(s.amount, currency)}</strong> a <strong style={{ color: 'inherit' }}>{toName}</strong></span>}
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
@@ -239,7 +263,7 @@ export default async function GroupDetailsPage({
                                                     <span style={{ color: 'var(--foreground)', fontWeight: 700, fontSize: '14px' }}>{e.description}</span>
                                                     {isOverdue && <span style={{ fontSize: '11px', fontWeight: 700, color: '#f43f5e', background: 'rgba(244,63,94,0.1)', padding: '2px 6px', borderRadius: '4px' }}>⚠️ Vencido</span>}
                                                 </div>
-                                                <p style={{ color: 'var(--muted-foreground)', fontSize: '12px' }}>Pagado por <span style={{ color: 'var(--foreground)' }}>{e.profiles?.full_name || 'Alguien'}</span> • <span style={{ color: '#f43f5e', fontWeight: 700 }}>{formatMoney(s.amount_owed)}</span></p>
+                                                <p style={{ color: 'var(--muted-foreground)', fontSize: '12px' }}>Pagado por <span style={{ color: 'var(--foreground)' }}>{e.profiles?.full_name || 'Alguien'}</span> • <span style={{ color: '#f43f5e', fontWeight: 700 }}>{formatMoney(s.amount_owed, e.currency || 'ARS')}</span></p>
                                             </div>
                                             <SettleUpButton splitId={s.id} groupId={id} />
                                         </div>
@@ -278,7 +302,7 @@ export default async function GroupDetailsPage({
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                             <div style={{ textAlign: 'right' }}>
-                                                <p style={{ color: activity.type === 'split_paid' ? '#10b981' : 'var(--foreground)', fontWeight: 700, fontSize: '14px', fontFamily: "'JetBrains Mono', monospace" }}>${activity.amount}</p>
+                                                <p style={{ color: activity.type === 'split_paid' ? '#10b981' : 'var(--foreground)', fontWeight: 700, fontSize: '14px', fontFamily: "'JetBrains Mono', monospace" }}>{formatMoney(activity.amount, activity.currency)}</p>
                                                 <p style={{ color: 'var(--muted-foreground)', fontSize: '11px' }}>{new Date(activity.date).toLocaleDateString()}</p>
                                             </div>
                                             {activity.editLink && (

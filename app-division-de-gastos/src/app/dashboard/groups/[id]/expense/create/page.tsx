@@ -51,9 +51,20 @@ export default async function CreateExpensePage({
                             <input id="description" name="description" type="text" placeholder="Ej. Cena del sábado 🍕" required style={inputStyle} />
                         </div>
 
-                        <div>
-                            <label style={labelStyle} htmlFor="amount">Monto</label>
-                            <input id="amount" name="amount" type="number" step="0.01" min="0.01" placeholder="0.00" required style={inputStyle} />
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <div style={{ flex: 1 }}>
+                                <label style={labelStyle} htmlFor="amount">Monto</label>
+                                <input id="amount" name="amount" type="number" step="0.01" min="0.01" placeholder="0.00" required style={inputStyle} />
+                            </div>
+                            <div style={{ width: '100px' }}>
+                                <label style={labelStyle} htmlFor="currency">Moneda</label>
+                                <select id="currency" name="currency" defaultValue="ARS" style={{ ...inputStyle, cursor: 'pointer' }}>
+                                    <option value="ARS" style={{ background: '#13131f' }}>ARS</option>
+                                    <option value="USD" style={{ background: '#13131f' }}>USD</option>
+                                    <option value="EUR" style={{ background: '#13131f' }}>EUR</option>
+                                    <option value="BRL" style={{ background: '#13131f' }}>BRL</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div>

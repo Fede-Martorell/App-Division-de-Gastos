@@ -125,10 +125,10 @@ export function simplifyDebts(balances: Map<string, number>): Settlement[] {
     return settlements
 }
 
-export function formatMoney(value: number): string {
+export function formatMoney(value: number, currency: string = 'ARS'): string {
     return new Intl.NumberFormat('es-AR', {
         style: 'currency',
-        currency: 'ARS',
+        currency: currency,
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(value)
