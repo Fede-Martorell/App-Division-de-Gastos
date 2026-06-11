@@ -15,34 +15,22 @@ export default async function GroupDetailsPage({
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    // 1. Obtener info del grupo y verificar que el usuario sea miembro
-    const { data: group, error: groupError } = await supabase
-        .from('groups')
-        .select('*')
-        .eq('id', id)
-        .single()
-
-    if (groupError || !group) {
-        redirect('/dashboard')
-    }
-
-    // 2. Obtener miembros del grupo con sus perfiles
-    const { data: members, error: membersError } = await supabase
-        .from('group_members')
-        .select(`
+    // Obtener info del grupo, miembros y gastos en paralelo
+    const [
+        { data: group, error: groupError },
+        { data: members },
+        { data: expenses }
+    ] = await Promise.all([
+        supabase.from('groups').select('*').eq('id', id).single(),
+        supabase.from('group_members').select(`
             user_id,
             role,
             profiles (
                 full_name,
                 cbu_alias
             )
-        `)
-        .eq('group_id', id)
-
-    // 3. Obtener gastos del grupo y sus splits
-    const { data: expenses, error: expensesError } = await supabase
-        .from('expenses')
-        .select(`
+        `).eq('group_id', id),
+        supabase.from('expenses').select(`
             id,
             group_id,
             paid_by,
@@ -61,9 +49,12 @@ export default async function GroupDetailsPage({
                 is_paid,
                 paid_at
             )
-        `)
-        .eq('group_id', id)
-        .order('date', { ascending: false })
+        `).eq('group_id', id).order('date', { ascending: false })
+    ])
+
+    if (groupError || !group) {
+        redirect('/dashboard')
+    }
 
     const memberIds = (members ?? []).map((m: any) => m.user_id)
     const nameById = new Map<string, string>(
@@ -94,27 +85,17 @@ export default async function GroupDetailsPage({
     const activities: any[] = []
     
     ;(expenses ?? []).forEach((expense: any) => {
-        // Gasto creado
         activities.push({
             type: 'expense_created',
             id: `exp-${expense.id}`,
             date: expense.created_at || expense.date,
-            icon: (
-                <div className="p-2 rounded-lg bg-white ring-1 ring-zinc-200">
-                    <svg className="h-5 w-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.68 1.005A2.997 2.997 0 0112 8 2.997 2.997 0 017.32 7.005C8.12 6.407 9.09 6 10.12 6z" />
-                    </svg>
-                </div>
-            ),
             title: expense.description,
-            subtitle: `Pagado por <span class='font-medium'>${expense.profiles?.full_name || 'Alguien'}</span>`,
+            paidBy: expense.profiles?.full_name || 'Alguien',
             amount: expense.amount,
-            amountColor: 'text-zinc-900',
             originalDate: expense.date,
             editLink: `/dashboard/groups/${id}/expense/${expense.id}/edit`
         })
 
-        // Pagos saldados
         ;(expense.expense_splits || []).forEach((split: any) => {
             if (split.is_paid && split.paid_at) {
                 const debtorName = nameById.get(split.user_id) || 'Usuario'
@@ -122,17 +103,9 @@ export default async function GroupDetailsPage({
                     type: 'split_paid',
                     id: `split-${split.id}`,
                     date: split.paid_at,
-                    icon: (
-                        <div className="p-2 rounded-lg bg-indigo-50 ring-1 ring-indigo-200">
-                            <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                        </div>
-                    ),
                     title: `Pago de ${debtorName}`,
-                    subtitle: `Deuda de "${expense.description}"`,
+                    paidBy: `Deuda de "${expense.description}"`,
                     amount: split.amount_owed,
-                    amountColor: 'text-indigo-600',
                     originalDate: null,
                     editLink: null
                 })
@@ -140,213 +113,184 @@ export default async function GroupDetailsPage({
         })
     })
 
-    // Sort descending by date
     activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
     return (
-        <div className="min-h-screen bg-zinc-50 p-6">
-            <div className="mx-auto max-w-4xl">
+        <div style={{ padding: '32px' }}>
+            {/* Header */}
+            <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <Link
+                        href="/dashboard"
+                        style={{ display: 'flex', width: '42px', height: '42px', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--glass-border)', textDecoration: 'none', color: 'var(--muted-foreground)' }}
+                    >
+                        <svg style={{ width: '20px', height: '20px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                    </Link>
+                    <div>
+                        <h1 style={{ color: 'var(--foreground)', fontSize: '26px', fontWeight: 800, letterSpacing: '-0.02em' }}>{group.name}</h1>
+                        <p style={{ color: 'var(--muted-foreground)', fontSize: '14px', marginTop: '2px' }}>{group.description || 'Sin descripción'}</p>
+                    </div>
+                </div>
+                <Link
+                    href={`/dashboard/groups/${id}/expense/create`}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 20px', borderRadius: '12px', background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', color: 'white', fontWeight: 700, fontSize: '14px', boxShadow: '0 8px 24px rgba(124, 58, 237, 0.3)', textDecoration: 'none' }}
+                >
+                    + Agregar Gasto
+                </Link>
+            </header>
 
-                {/* Header del Grupo */}
-                <header className="mb-8 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link
-                            href="/dashboard"
-                            className="p-2 rounded-full bg-white shadow-sm ring-1 ring-zinc-200 hover:bg-zinc-50 transition-colors"
-                        >
-                            <svg className="h-5 w-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                            </svg>
-                        </Link>
-                        <div>
-                            <h1 className="text-2xl font-bold text-zinc-900">{group.name}</h1>
-                            <p className="text-zinc-500 text-sm">{group.description || 'Sin descripción'}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
+                {/* Left column */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* Invite Code */}
+                    <div style={{ background: 'var(--glass)', border: '1px solid var(--glass-border)', borderRadius: '16px', padding: '24px' }}>
+                        <h2 style={{ color: 'var(--foreground)', fontWeight: 700, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Invitar amigos</h2>
+                        <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', marginBottom: '16px' }}>Compartí este código para que otros puedan unirse.</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '18px', fontWeight: 700, letterSpacing: '0.2em', color: '#a78bfa' }}>{group.invite_code}</span>
+                                <CopyButton text={group.invite_code} />
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', opacity: 0.5 }}>
+                                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+                                <span style={{ padding: '0 12px', color: 'var(--muted-foreground)', fontSize: '11px', textTransform: 'uppercase' }}>o mediante enlace</span>
+                                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+                            </div>
+                            <CopyLinkButton code={group.invite_code} />
                         </div>
                     </div>
-                    <Link
-                        href={`/dashboard/groups/${id}/expense/create`}
-                        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors shadow-sm"
-                    >
-                        + Agregar Gasto
-                    </Link>
-                </header>
 
-                <div className="grid gap-6 md:grid-cols-3">
-
-                    {/* Columna Izquierda: Miembros */}
-                    <div className="col-span-1 space-y-6">
-                        {/* Código de Invitación */}
-                        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
-                            <h2 className="mb-3 text-sm font-semibold text-zinc-800 uppercase tracking-wider">Invitar amigos</h2>
-                            <p className="text-xs text-zinc-500 mb-4">
-                                Compartí este código de invitación para que otros puedan unirse a este grupo.
-                            </p>
-                            <div className="flex flex-col gap-3">
-                                <div className="flex items-center justify-between rounded-xl bg-zinc-50 border border-zinc-200 p-3">
-                                    <span className="font-mono text-lg font-bold tracking-widest text-zinc-800">
-                                        {group.invite_code}
-                                    </span>
-                                    <CopyButton text={group.invite_code} />
+                    {/* Members */}
+                    <div style={{ background: 'var(--glass)', border: '1px solid var(--glass-border)', borderRadius: '16px', padding: '24px' }}>
+                        <h2 style={{ color: 'var(--foreground)', fontWeight: 700, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Miembros</h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            {members?.map((member: any) => (
+                                <div key={member.user_id} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(124,58,237,0.3), rgba(6,182,212,0.3))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                        <span style={{ color: 'white', fontWeight: 700, fontSize: '13px' }}>{member.profiles?.full_name?.[0] || 'U'}</span>
+                                    </div>
+                                    <div style={{ overflow: 'hidden', flex: 1 }}>
+                                        <p style={{ color: 'var(--foreground)', fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.profiles?.full_name || 'Usuario desconocido'}</p>
+                                        <p style={{ color: 'var(--muted-foreground)', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.profiles?.cbu_alias || 'Sin CBU/Alias'}</p>
+                                    </div>
                                 </div>
-                                <div className="relative flex items-center py-2">
-                                    <div className="flex-grow border-t border-zinc-200"></div>
-                                    <span className="flex-shrink-0 mx-4 text-zinc-400 text-xs">o</span>
-                                    <div className="flex-grow border-t border-zinc-200"></div>
-                                </div>
-                                <CopyLinkButton code={group.invite_code} />
-                            </div>
+                            ))}
                         </div>
+                    </div>
+                </div>
 
-                        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
-                            <h2 className="mb-4 text-sm font-semibold text-zinc-800 uppercase tracking-wider">Miembros</h2>
-                            <div className="space-y-4">
-                                {members?.map((member: any) => (
-                                    <div key={member.user_id} className="flex items-center gap-3">
-                                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
-                                            {member.profiles?.full_name?.[0] || 'U'}
+                {/* Right column */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* Saldos pendientes */}
+                    <div style={{ background: 'var(--glass)', border: '1px solid var(--glass-border)', borderRadius: '16px', padding: '24px' }}>
+                        <h2 style={{ color: 'var(--foreground)', fontWeight: 700, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Saldos pendientes</h2>
+                        {settlements.length === 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px', textAlign: 'center', borderRadius: '12px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                                <span style={{ fontSize: '24px', marginBottom: '8px' }}>🎉</span>
+                                <p style={{ color: '#10b981', fontWeight: 600, fontSize: '14px' }}>Todos los saldos están al día.</p>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {settlements.map((s, idx) => {
+                                    const fromName = nameById.get(s.from) || 'Usuario'
+                                    const toName = nameById.get(s.to) || 'Usuario'
+                                    const isUserDebtor = user?.id === s.from
+                                    const isUserCreditor = user?.id === s.to
+
+                                    let bgColor = 'rgba(255,255,255,0.03)'
+                                    let borderColor = 'rgba(255,255,255,0.06)'
+                                    let textColor = 'var(--foreground)'
+                                    if (isUserCreditor) {
+                                        bgColor = 'rgba(16,185,129,0.08)'
+                                        borderColor = 'rgba(16,185,129,0.2)'
+                                        textColor = '#10b981'
+                                    } else if (isUserDebtor) {
+                                        bgColor = 'rgba(244,63,94,0.08)'
+                                        borderColor = 'rgba(244,63,94,0.2)'
+                                        textColor = '#f43f5e'
+                                    }
+
+                                    return (
+                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: '12px', background: bgColor, border: `1px solid ${borderColor}`, fontSize: '14px', fontWeight: 500, color: textColor }}>
+                                            {isUserDebtor && <span>Le debés <strong>{formatMoney(s.amount)}</strong> a <strong>{toName}</strong></span>}
+                                            {isUserCreditor && <span><strong>{fromName}</strong> te debe <strong>{formatMoney(s.amount)}</strong></span>}
+                                            {!isUserDebtor && !isUserCreditor && <span><strong>{fromName}</strong> le debe <strong>{formatMoney(s.amount)}</strong> a <strong>{toName}</strong></span>}
                                         </div>
-                                        <div className="overflow-hidden">
-                                            <p className="text-sm font-medium text-zinc-900 truncate">
-                                                {member.profiles?.full_name || 'Usuario desconocido'}
-                                            </p>
-                                            <p className="text-xs text-zinc-500 truncate">
-                                                {member.profiles?.cbu_alias || 'Sin CBU/Alias'}
-                                            </p>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Mis deudas detalladas */}
+                    <div style={{ background: 'var(--glass)', border: '1px solid var(--glass-border)', borderRadius: '16px', padding: '24px' }}>
+                        <h2 style={{ color: 'var(--foreground)', fontWeight: 700, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Mis Deudas Detalladas</h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {myPendingSplits.length === 0 ? (
+                                <p style={{ color: 'var(--muted-foreground)', fontSize: '14px', textAlign: 'center', padding: '24px 0' }}>No tienes deudas pendientes.</p>
+                            ) : (
+                                myPendingSplits.map((s: any) => {
+                                    const e = s.expense
+                                    const isOverdue = (Date.now() - new Date(e.date).getTime()) > 3 * 24 * 60 * 60 * 1000
+                                    return (
+                                        <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                            <div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                    <span style={{ color: 'var(--foreground)', fontWeight: 700, fontSize: '14px' }}>{e.description}</span>
+                                                    {isOverdue && <span style={{ fontSize: '11px', fontWeight: 700, color: '#f43f5e', background: 'rgba(244,63,94,0.1)', padding: '2px 6px', borderRadius: '4px' }}>⚠️ Vencido</span>}
+                                                </div>
+                                                <p style={{ color: 'var(--muted-foreground)', fontSize: '12px' }}>Pagado por <span style={{ color: 'var(--foreground)' }}>{e.profiles?.full_name || 'Alguien'}</span> • <span style={{ color: '#f43f5e', fontWeight: 700 }}>{formatMoney(s.amount_owed)}</span></p>
+                                            </div>
+                                            <SettleUpButton splitId={s.id} groupId={id} />
+                                        </div>
+                                    )
+                                })
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Movimientos del grupo */}
+                    <div style={{ background: 'var(--glass)', border: '1px solid var(--glass-border)', borderRadius: '16px', padding: '24px' }}>
+                        <h2 style={{ color: 'var(--foreground)', fontWeight: 700, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Movimientos del Grupo</h2>
+                        {activities.length === 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 0', textAlign: 'center' }}>
+                                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+                                    <svg style={{ width: '24px', height: '24px', color: 'var(--muted-foreground)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                </div>
+                                <p style={{ color: 'var(--muted-foreground)', fontWeight: 500 }}>Aún no hay movimientos registrados en este grupo.</p>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {activities.map((activity: any) => (
+                                    <div key={activity.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: activity.type === 'split_paid' ? 'rgba(16,185,129,0.15)' : 'rgba(124,58,237,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                {activity.type === 'split_paid' ? (
+                                                    <svg style={{ width: '16px', height: '16px', color: '#10b981' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                ) : (
+                                                    <svg style={{ width: '16px', height: '16px', color: '#a78bfa' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.68 1.005" /></svg>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p style={{ color: 'var(--foreground)', fontWeight: 600, fontSize: '13px' }}>{activity.title}</p>
+                                                <p style={{ color: 'var(--muted-foreground)', fontSize: '11px', marginTop: '1px' }}>{activity.paidBy}</p>
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <p style={{ color: activity.type === 'split_paid' ? '#10b981' : 'var(--foreground)', fontWeight: 700, fontSize: '14px', fontFamily: "'JetBrains Mono', monospace" }}>${activity.amount}</p>
+                                                <p style={{ color: 'var(--muted-foreground)', fontSize: '11px' }}>{new Date(activity.date).toLocaleDateString()}</p>
+                                            </div>
+                                            {activity.editLink && (
+                                                <Link href={activity.editLink} style={{ padding: '6px', borderRadius: '8px', color: 'var(--muted-foreground)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', textDecoration: 'none' }} title="Editar gasto">
+                                                    <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4.5-4.5 1.5-1.5 4.5-4.5 1.5 1.5z" /></svg>
+                                                </Link>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Columna Derecha: Saldos + Gastos */}
-                    <div className="col-span-2 space-y-6">
-
-                        {/* Saldos pendientes */}
-                        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
-                            <h2 className="mb-4 text-sm font-semibold text-zinc-800 uppercase tracking-wider">Saldos pendientes</h2>
-
-                            {settlements.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-6 text-center">
-                                    <p className="text-zinc-500 text-sm">Todos los saldos están al día.</p>
-                                </div>
-                            ) : (
-                                <ul className="space-y-2">
-                                    {settlements.map((s, idx) => {
-                                        const fromName = nameById.get(s.from) || 'Usuario'
-                                        const toName = nameById.get(s.to) || 'Usuario'
-                                        const isUserDebtor = user?.id === s.from
-                                        const isUserCreditor = user?.id === s.to
-                                        const highlight = isUserDebtor || isUserCreditor
-
-                                        let label: React.ReactNode
-                                        if (isUserDebtor) {
-                                            label = <>Le debés <span className="font-bold">{formatMoney(s.amount)}</span> a <span className="font-semibold">{toName}</span></>
-                                        } else if (isUserCreditor) {
-                                            label = <><span className="font-semibold">{fromName}</span> te debe <span className="font-bold">{formatMoney(s.amount)}</span></>
-                                        } else {
-                                            label = <><span className="font-semibold">{fromName}</span> le debe <span className="font-bold">{formatMoney(s.amount)}</span> a <span className="font-semibold">{toName}</span></>
-                                        }
-
-                                        return (
-                                            <li
-                                                key={idx}
-                                                className={
-                                                    highlight
-                                                        ? `flex items-center justify-between rounded-xl p-3 text-sm ${isUserCreditor ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200' : 'bg-amber-50 text-amber-900 ring-1 ring-amber-200'}`
-                                                        : 'flex items-center justify-between rounded-xl p-3 text-sm bg-zinc-50 text-zinc-700 ring-1 ring-zinc-100'
-                                                }
-                                            >
-                                                <span>{label}</span>
-                                            </li>
-                                        )
-                                    })}
-                                </ul>
-                            )}
-                        </div>
-
-                        {/* Detalle de Deudas (Para el usuario actual) */}
-                        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
-                            <h2 className="mb-4 text-sm font-semibold text-zinc-800 uppercase tracking-wider">Mis Deudas Detalladas</h2>
-                            <div className="space-y-3">
-                                {myPendingSplits.length === 0 ? (
-                                    <p className="text-zinc-500 text-sm text-center py-4">No tienes deudas pendientes.</p>
-                                ) : (
-                                    myPendingSplits.map((s: any) => {
-                                        const e = s.expense
-                                        const isOverdue = (Date.now() - new Date(e.date).getTime()) > 3 * 24 * 60 * 60 * 1000
-                                        return (
-                                            <div key={s.id} className="flex items-center justify-between p-3 rounded-xl border border-zinc-100 bg-zinc-50">
-                                                <div className="flex flex-col gap-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-sm font-medium text-zinc-900">{e.description}</span>
-                                                        {isOverdue && (
-                                                            <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded ring-1 ring-red-200">
-                                                                ⚠️ Vencido
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-xs text-zinc-500">
-                                                        Pagado por {e.profiles?.full_name || 'Alguien'} • {formatMoney(s.amount_owed)}
-                                                    </p>
-                                                </div>
-                                                <SettleUpButton splitId={s.id} groupId={id} />
-                                            </div>
-                                        )
-                                    })
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
-                            <h2 className="mb-4 text-sm font-semibold text-zinc-800 uppercase tracking-wider">Movimientos del Grupo</h2>
-
-                            {activities.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-12 text-center">
-                                    <p className="text-zinc-500 text-sm">Aún no hay movimientos registrados en este grupo.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {activities.map((activity: any) => (
-                                        <div
-                                            key={activity.id}
-                                            className="group/item flex items-center justify-between p-4 rounded-xl border border-zinc-100 bg-zinc-50 hover:bg-zinc-100 transition-colors"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                {activity.icon}
-                                                <div className="relative">
-                                                    <p className="text-sm font-semibold text-zinc-900">{activity.title}</p>
-                                                    <p className="text-xs text-zinc-500" dangerouslySetInnerHTML={{ __html: activity.subtitle }} />
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <div className="text-right">
-                                                    <p className={`text-sm font-bold ${activity.amountColor}`}>${activity.amount}</p>
-                                                    <p className="text-[10px] text-zinc-400">
-                                                        {new Date(activity.date).toLocaleDateString()}
-                                                    </p>
-                                                </div>
-                                                {activity.editLink && (
-                                                    <Link
-                                                        href={activity.editLink}
-                                                        className="p-2 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-white ring-1 ring-transparent hover:ring-zinc-200 transition-all"
-                                                        title="Editar gasto"
-                                                    >
-                                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4.5-4.5 1.5-1.5 4.5-4.5 1.5 1.5z" />
-                                                        </svg>
-                                                        <span className="sr-only">Editar</span>
-                                                    </Link>
-                                                )}
-                                                {!activity.editLink && (
-                                                    <div className="w-8"></div> /* Placeholder for alignment */
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>

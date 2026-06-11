@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { calculateGroupBalances, simplifyDebts, formatMoney } from '@/lib/balances'
-import { NotificationsDropdown } from '@/components/NotificationsDropdown'
 
 export default async function DashboardPage() {
     const supabase = await createClient()
@@ -10,39 +9,30 @@ export default async function DashboardPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    // Solo crear perfil si no existe aún — nunca sobreescribir el nombre editado por el usuario
-    await supabase
-        .from('profiles')
-        .insert({
-            id: user.id,
-            email: user.email,
-            full_name: user.email?.split('@')[0] || 'Usuario'
-        })
-        .select()
-        .maybeSingle()
+    const [profileRes, groupsRes] = await Promise.all([
+        supabase.from('profiles').select('full_name').eq('id', user.id).single(),
+        supabase.from('group_members').select(`groups (id, name, description)`).eq('user_id', user.id)
+    ])
 
-    // Leer el nombre real del perfil (puede haber sido editado por el usuario)
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single()
+    let profile = profileRes.data
+    if (profileRes.error || !profile) {
+        // Solo crear perfil si no existe aún
+        const insertRes = await supabase
+            .from('profiles')
+            .insert({
+                id: user.id,
+                email: user.email,
+                full_name: user.email?.split('@')[0] || 'Usuario'
+            })
+            .select('full_name')
+            .maybeSingle()
+        profile = insertRes.data
+    }
 
-    const { data: groups } = await supabase
-        .from('group_members')
-        .select(`
-            groups (
-                id,
-                name,
-                description
-            )
-        `)
-        .eq('user_id', user.id)
-
-    const userGroups = (groups?.map(g => g.groups) || []) as any[]
+    const userGroups = (groupsRes.data?.map(g => g.groups) || []) as any[]
     const groupIds = userGroups.map((g: any) => g?.id).filter(Boolean)
 
-    const [{ data: allExpenses }, { data: allMembers }, { data: notifications }] = groupIds.length > 0
+    const [{ data: allExpenses }, { data: allMembers }] = groupIds.length > 0
         ? await Promise.all([
             supabase.from('expenses').select(`
                 group_id,
@@ -55,13 +45,8 @@ export default async function DashboardPage() {
                 )
             `).in('group_id', groupIds),
             supabase.from('group_members').select('group_id, user_id').in('group_id', groupIds),
-            supabase.from('notifications')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false })
-                .limit(20)
         ])
-        : [{ data: [] as any[] }, { data: [] as any[] }, { data: [] as any[] }]
+        : [{ data: [] as any[] }, { data: [] as any[] }]
 
     // Agrupar miembros por grupo
     const membersByGroup = new Map<string, string[]>()
@@ -116,103 +101,115 @@ export default async function DashboardPage() {
     }
 
     return (
-        <div className="min-h-screen bg-zinc-50 p-6">
-            <div className="mx-auto max-w-5xl">
-                <header className="mb-8 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-zinc-900">Hola, {profile?.full_name || user?.email?.split('@')[0]} 👋</h1>
-                        <p className="text-zinc-500">Gestiona tus gastos y cuentas con tus amigos</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <NotificationsDropdown initialNotifications={notifications || []} />
-                        <Link
-                            href="/dashboard/profile"
-                            className="rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-200 hover:bg-zinc-50 transition-colors"
-                        >
-                            Mi Perfil
-                        </Link>
-                    </div>
-                </header>
-
-                <div className="grid gap-6 md:grid-cols-3">
-                    {/* Resumen Rápido */}
-                    <div className="col-span-full grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        <div className="rounded-2xl bg-indigo-600 p-6 text-white shadow-lg">
-                            <p className="text-sm opacity-80">Total por cobrar</p>
-                            <p className="text-2xl font-bold">{formatMoney(porCobrar)}</p>
-                        </div>
-                        <div className="rounded-2xl bg-zinc-800 p-6 text-white shadow-lg">
-                            <p className="text-sm opacity-80">Total por pagar</p>
-                            <p className="text-2xl font-bold">{formatMoney(porPagar)}</p>
-                        </div>
-                        <div className="hidden rounded-2xl bg-white p-6 text-zinc-900 shadow-sm ring-1 ring-zinc-200 sm:block">
-                            <p className="text-sm text-zinc-500">Grupos Activos</p>
-                            <p className="text-2xl font-bold">{userGroups.length}</p>
-                        </div>
-                    </div>
-
-                    {/* Lista de Grupos */}
-                    <div className="col-span-full rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
-                        <div className="mb-6 flex items-center justify-between">
-                            <h2 className="text-lg font-semibold text-zinc-800">Mis Grupos</h2>
-                            <div className="flex gap-2">
-                                <Link
-                                    href="/dashboard/groups/join"
-                                    className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors shadow-sm"
-                                >
-                                    + Unirse a Grupo
-                                </Link>
-                                <Link
-                                    href="/dashboard/groups/create"
-                                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors shadow-sm"
-                                >
-                                    + Nuevo Grupo
-                                </Link>
-                            </div>
-                        </div>
-
-                        {userGroups.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-center">
-                                <div className="rounded-full bg-zinc-100 p-4 mb-4">
-                                    <svg className="h-8 w-8 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.888M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.888M7 20h-5v-2a3 3 0 015.356-1.888M7 20v-2c0-.656.126-1.283.356-1.888m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                    </svg>
-                                </div>
-                                <p className="text-zinc-500">Aún no tienes grupos creados.</p>
-                                <Link href="/dashboard/groups/create" className="mt-2 text-sm font-medium text-indigo-600 hover:underline">
-                                    Crea tu primer grupo ahora
-                                </Link>
-                            </div>
-                        ) : (
-                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                {userGroups.map((group: any) => {
-                                    const summary = groupSummaries.get(group.id)
-                                    return (
-                                        <Link
-                                            key={group.id}
-                                            href={`/dashboard/groups/${group.id}`}
-                                            className="block rounded-xl border border-zinc-200 p-4 transition-all hover:border-indigo-300 hover:shadow-md"
-                                        >
-                                            <h3 className="font-semibold text-zinc-800">{group.name}</h3>
-                                            <p className="mt-1 truncate text-sm text-zinc-500">{group.description || 'Sin descripción'}</p>
-                                            <div className="mt-4 flex items-center justify-between border-t pt-3 border-zinc-100">
-                                                <span className="text-[10px] font-medium text-red-600">
-                                                    Debés: {formatMoney(summary?.porPagar || 0)}
-                                                </span>
-                                                <span className="text-[10px] font-medium text-emerald-600">
-                                                    Cobrás: {formatMoney(summary?.porCobrar || 0)}
-                                                </span>
-                                            </div>
-                                            <div className="mt-3 flex items-center justify-between">
-                                                <span className="text-xs font-medium text-indigo-600">Ver detalles →</span>
-                                            </div>
-                                        </Link>
-                                    )
-                                })}
-                            </div>
-                        )}
-                    </div>
+        <div style={{ padding: '32px' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+                <div>
+                    <h1 style={{ color: 'var(--foreground)', fontSize: '26px', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '4px' }}>
+                        Hola, {profile?.full_name || user?.email?.split('@')[0]} 👋
+                    </h1>
+                    <p style={{ color: 'var(--muted-foreground)', fontSize: '14px' }}>
+                        Aquí está el resumen de tus gastos compartidos
+                    </p>
                 </div>
+                <Link
+                    href="/dashboard/groups/create"
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        padding: '11px 20px', borderRadius: '12px', border: 'none',
+                        background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                        color: 'white', fontWeight: 700, fontSize: '14px',
+                        boxShadow: '0 8px 24px rgba(124, 58, 237, 0.3)',
+                        textDecoration: 'none',
+                    }}
+                >
+                    + Agregar gasto
+                </Link>
+            </div>
+
+            {/* Summary Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '28px' }}>
+                {/* Por cobrar */}
+                <div style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05))', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '16px', padding: '24px', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(16,185,129,0.1)' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16,185,129,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>
+                        </div>
+                        <span style={{ color: '#10b981', fontSize: '13px', fontWeight: 600 }}>Por cobrar</span>
+                    </div>
+                    <div style={{ color: '#10b981', fontSize: '28px', fontWeight: 800, letterSpacing: '-0.02em', fontFamily: "'JetBrains Mono', monospace" }}>{formatMoney(porCobrar)}</div>
+                    <div style={{ color: 'rgba(16,185,129,0.6)', fontSize: '12px', marginTop: '4px' }}>de {userGroups.length} grupos</div>
+                </div>
+
+                {/* Por pagar */}
+                <div style={{ background: 'linear-gradient(135deg, rgba(244,63,94,0.15), rgba(244,63,94,0.05))', border: '1px solid rgba(244,63,94,0.2)', borderRadius: '16px', padding: '24px', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(244,63,94,0.1)' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(244,63,94,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6" /><polyline points="17 18 23 18 23 12" /></svg>
+                        </div>
+                        <span style={{ color: '#f43f5e', fontSize: '13px', fontWeight: 600 }}>Por pagar</span>
+                    </div>
+                    <div style={{ color: '#f43f5e', fontSize: '28px', fontWeight: 800, letterSpacing: '-0.02em', fontFamily: "'JetBrains Mono', monospace" }}>{formatMoney(porPagar)}</div>
+                    <div style={{ color: 'rgba(244,63,94,0.6)', fontSize: '12px', marginTop: '4px' }}>a {userGroups.length} grupos</div>
+                </div>
+
+                {/* Grupos activos */}
+                <div style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.15), rgba(124,58,237,0.05))', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '16px', padding: '24px', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(124,58,237,0.1)' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(124,58,237,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                        </div>
+                        <span style={{ color: '#a78bfa', fontSize: '13px', fontWeight: 600 }}>Grupos activos</span>
+                    </div>
+                    <div style={{ color: 'var(--foreground)', fontSize: '28px', fontWeight: 800, letterSpacing: '-0.02em', fontFamily: "'JetBrains Mono', monospace" }}>{userGroups.length}</div>
+                    <div style={{ color: 'var(--muted-foreground)', fontSize: '12px', marginTop: '4px' }}>en total</div>
+                </div>
+            </div>
+
+            {/* Mis Grupos */}
+            <div style={{ background: 'var(--glass)', border: '1px solid var(--glass-border)', borderRadius: '16px', padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h3 style={{ color: 'var(--foreground)', fontWeight: 700, fontSize: '16px' }}>Mis grupos</h3>
+                    <Link href="/dashboard/groups/create" style={{ color: 'var(--violet-light)', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>Ver todos →</Link>
+                </div>
+
+                {userGroups.length === 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 0', textAlign: 'center' }}>
+                        <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'rgba(124,58,237,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
+                        </div>
+                        <h3 style={{ color: 'var(--foreground)', fontWeight: 600, fontSize: '15px', marginBottom: '4px' }}>Aún no tienes grupos</h3>
+                        <p style={{ color: 'var(--muted-foreground)', fontSize: '13px', maxWidth: '280px' }}>Comienza a dividir gastos con tus amigos creando tu primer grupo.</p>
+                        <Link href="/dashboard/groups/create" style={{ marginTop: '16px', color: 'var(--violet-light)', fontWeight: 600, fontSize: '14px', textDecoration: 'none' }}>Crear mi primer grupo →</Link>
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {userGroups.map((group: any) => {
+                            const summary = groupSummaries.get(group.id)
+                            const balance = (summary?.porCobrar || 0) - (summary?.porPagar || 0)
+                            return (
+                                <Link key={group.id} href={`/dashboard/groups/${group.id}`} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', textDecoration: 'none', transition: 'all 0.15s' }}>
+                                    <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0, color: '#a78bfa', fontWeight: 700 }}>
+                                        {group.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ color: 'var(--foreground)', fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>{group.name}</div>
+                                        <div style={{ color: 'var(--muted-foreground)', fontSize: '12px' }}>{group.description || 'Sin descripción'}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ color: balance >= 0 ? '#10b981' : '#f43f5e', fontWeight: 700, fontSize: '15px', fontFamily: "'JetBrains Mono', monospace" }}>
+                                            {balance >= 0 ? '+' : ''}{formatMoney(balance)}
+                                        </div>
+                                        <div style={{ color: 'var(--muted-foreground)', fontSize: '11px' }}>{balance >= 0 ? 'te deben' : 'debés'}</div>
+                                    </div>
+                                </Link>
+                            )
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     )

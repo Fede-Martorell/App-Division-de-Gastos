@@ -29,7 +29,8 @@ export function SettleUpButton({ splitId, groupId }: { splitId: string; groupId:
                 type="button"
                 onClick={handleSettle}
                 disabled={isPending}
-                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-all disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
             >
                 {isPending ? 'Saldando...' : 'Saldar'}
             </button>

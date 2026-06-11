@@ -53,127 +53,66 @@ export default async function EditExpensePage({
 
     const updateExpenseWithParams = updateExpense.bind(null, groupId, expenseId)
 
+    const inputStyle = { width: '100%', padding: '12px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'var(--foreground)', fontSize: '15px', outline: 'none', boxSizing: 'border-box' as const }
+    const labelStyle = { color: 'var(--muted-foreground)', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }
+
     return (
-        <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
-            <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl ring-1 ring-zinc-200">
+        <div style={{ padding: '32px' }}>
+            <div style={{ maxWidth: '440px' }}>
+                <h1 style={{ color: 'var(--foreground)', fontSize: '26px', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '4px' }}>Editar Gasto</h1>
+                <p style={{ color: 'var(--muted-foreground)', fontSize: '14px', marginBottom: '28px' }}>Modifica los detalles y participantes</p>
 
-                <div className="mb-8 text-center">
-                    <h1 className="text-xl font-bold text-zinc-800">Editar Gasto</h1>
-                    <p className="mt-1 text-sm text-zinc-500">Modifica los detalles y participantes</p>
-                </div>
-
-                <form action={updateExpenseWithParams} className="flex flex-col gap-5">
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="description">
-                            Descripción
-                        </label>
-                        <input
-                            id="description"
-                            name="description"
-                            type="text"
-                            defaultValue={expense.description}
-                            placeholder="Ej. Cena del sábado 🍕"
-                            required
-                            className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="amount">
-                            Monto
-                        </label>
-                        <input
-                            id="amount"
-                            name="amount"
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            defaultValue={expense.amount}
-                            placeholder="0.00"
-                            required
-                            className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="paid_by">
-                            Pagado por
-                        </label>
-                        <select
-                            id="paid_by"
-                            name="paid_by"
-                            defaultValue={expense.paid_by}
-                            required
-                            className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                        >
-                            {members?.map((m: any) => (
-                                <option key={m.user_id} value={m.user_id}>
-                                    {m.profiles?.full_name || 'Sin nombre'}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="date">
-                            Fecha
-                        </label>
-                        <input
-                            id="date"
-                            name="date"
-                            type="date"
-                            defaultValue={expense.date}
-                            required
-                            className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                        />
-                    </div>
-
-                    <div className="space-y-3">
-                        <label className="block text-sm font-medium text-zinc-700">
-                            Participantes en el gasto
-                        </label>
-                        <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto p-2 border border-zinc-200 rounded-lg bg-zinc-50">
-                            {members?.map((m: any) => (
-                                <label key={m.user_id} className="flex items-center gap-3 p-2 rounded-md hover:bg-white hover:shadow-sm cursor-pointer transition-all group">
-                                    <input
-                                        type="checkbox"
-                                        name="participants"
-                                        value={m.user_id}
-                                        defaultChecked={currentParticipantIds.includes(m.user_id)}
-                                        className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                                    />
-                                    <span className="text-sm text-zinc-700 group-hover:text-zinc-900">
-                                        {m.profiles?.full_name || 'Sin nombre'}
-                                    </span>
-                                </label>
-                            ))}
+                <div style={{ background: '#13131f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '32px' }}>
+                    <form action={updateExpenseWithParams} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div>
+                            <label style={labelStyle} htmlFor="description">Descripción</label>
+                            <input id="description" name="description" type="text" defaultValue={expense.description} placeholder="Ej. Cena del sábado 🍕" required style={inputStyle} />
                         </div>
-                        <p className="text-[10px] text-zinc-400 italic">
-                            Puedes agregar o quitar personas para recalcular el gasto.
-                        </p>
-                    </div>
 
-                    {error && (
-                        <p className="text-sm font-medium text-red-500 bg-red-50 p-3 rounded-md">
-                            {error}
-                        </p>
-                    )}
+                        <div>
+                            <label style={labelStyle} htmlFor="amount">Monto</label>
+                            <input id="amount" name="amount" type="number" step="0.01" min="0.01" defaultValue={expense.amount} placeholder="0.00" required style={inputStyle} />
+                        </div>
 
-                    <div className="flex gap-3 mt-2">
-                        <Link
-                            href={`/dashboard/groups/${groupId}`}
-                            className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-center text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
-                        >
-                            Cancelar
-                        </Link>
-                        <button
-                            type="submit"
-                            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
-                        >
-                            Actualizar Gasto
-                        </button>
-                    </div>
-                </form>
+                        <div>
+                            <label style={labelStyle} htmlFor="paid_by">Pagado por</label>
+                            <select id="paid_by" name="paid_by" defaultValue={expense.paid_by} required style={{ ...inputStyle, cursor: 'pointer' }}>
+                                {members?.map((m: any) => (
+                                    <option key={m.user_id} value={m.user_id} style={{ background: '#13131f' }}>
+                                        {m.profiles?.full_name || 'Sin nombre'}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label style={labelStyle} htmlFor="date">Fecha</label>
+                            <input id="date" name="date" type="date" defaultValue={expense.date} required style={inputStyle} />
+                        </div>
+
+                        <div>
+                            <label style={labelStyle}>Participantes en el gasto</label>
+                            <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', maxHeight: '200px', overflowY: 'auto' }}>
+                                {members?.map((m: any) => (
+                                    <label key={m.user_id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}>
+                                        <input type="checkbox" name="participants" value={m.user_id} defaultChecked={currentParticipantIds.includes(m.user_id)} style={{ accentColor: '#7c3aed' }} />
+                                        <span style={{ color: 'var(--foreground)', fontSize: '14px' }}>{m.profiles?.full_name || 'Sin nombre'}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', fontStyle: 'italic', marginTop: '6px' }}>Puedes agregar o quitar personas para recalcular el gasto.</p>
+                        </div>
+
+                        {error && (
+                            <p style={{ fontSize: '14px', fontWeight: 500, color: '#f43f5e', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.2)', padding: '12px', borderRadius: '10px' }}>{error}</p>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                            <Link href={`/dashboard/groups/${groupId}`} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'var(--muted-foreground)', textAlign: 'center', fontWeight: 600, fontSize: '14px', textDecoration: 'none' }}>Cancelar</Link>
+                            <button type="submit" style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: '15px', boxShadow: '0 8px 24px rgba(124, 58, 237, 0.35)' }}>Actualizar Gasto</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     )
