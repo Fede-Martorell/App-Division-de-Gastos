@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createExpense } from '../actions'
-import { SubmitExpenseButton } from '@/components/SubmitExpenseButton'
+import { ExpenseForm } from '@/components/ExpenseForm'
 
 export default async function CreateExpensePage({
     params,

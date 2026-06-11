@@ -30,6 +30,7 @@ export async function createExpense(groupId: string, formData: FormData) {
     const paidBy = formData.get('paid_by') as string
     const date = formData.get('date') as string
     const participants = formData.getAll('participants') as string[]
+    const splitType = formData.get('split_type') as string
 
     if (!description || !paidBy || !date || isNaN(amount) || amount <= 0 || participants.length === 0) {
         redirect(`/dashboard/groups/${groupId}/expense/create?error=Datos+invalidos+o+sin+participantes`)
@@ -53,14 +54,26 @@ export async function createExpense(groupId: string, formData: FormData) {
     }
 
     const expenseId = expenseData.id
-    const splitAmount = amount / participants.length
 
-    // 2. Crear los splits para cada participante
-    const splits = participants.map(userId => ({
-        expense_id: expenseId,
-        user_id: userId,
-        amount_owed: splitAmount,
-    }))
+    // 2. Calcular y crear los splits
+    const splits = participants.map(userId => {
+        let splitAmount = 0
+        if (splitType === 'percentage') {
+            const percentage = parseFloat(formData.get(`share_${userId}`) as string) || 0
+            splitAmount = amount * (percentage / 100)
+        } else if (splitType === 'exact') {
+            splitAmount = parseFloat(formData.get(`share_${userId}`) as string) || 0
+        } else {
+            // Equal split
+            splitAmount = amount / participants.length
+        }
+
+        return {
+            expense_id: expenseId,
+            user_id: userId,
+            amount_owed: splitAmount,
+        }
+    })
 
     const { error: splitError } = await supabase
         .from('expense_splits')
@@ -73,15 +86,17 @@ export async function createExpense(groupId: string, formData: FormData) {
     // 3. Crear notificaciones para los deudores (excluyendo al creador del gasto)
     const notifications = participants
         .filter(userId => userId !== user.id)
-        .map(userId => ({
-            user_id: userId,
-            group_id: groupId,
-            title: 'Nuevo Gasto',
-            message: `Se te asignó una parte del gasto "${description}" por $${splitAmount.toFixed(2)}.`
-        }))
+        .map(userId => {
+            const splitAmount = splits.find(s => s.user_id === userId)?.amount_owed || 0
+            return {
+                user_id: userId,
+                group_id: groupId,
+                title: 'Nuevo Gasto',
+                message: `Se te asignó una parte del gasto "${description}" por $${splitAmount.toFixed(2)}.`
+            }
+        })
 
     if (notifications.length > 0) {
-        // Ignoramos el error intencionalmente para no bloquear la creación del gasto
         await supabase.from('notifications').insert(notifications)
     }
 
@@ -115,6 +130,7 @@ export async function updateExpense(groupId: string, expenseId: string, formData
     const paidBy = formData.get('paid_by') as string
     const date = formData.get('date') as string
     const participants = formData.getAll('participants') as string[]
+    const splitType = formData.get('split_type') as string
 
     if (!description || !paidBy || !date || isNaN(amount) || amount <= 0 || participants.length === 0) {
         redirect(`/dashboard/groups/${groupId}/expense/${expenseId}/edit?error=Datos+invalidos+o+sin+participantes`)
@@ -147,12 +163,22 @@ export async function updateExpense(groupId: string, expenseId: string, formData
     }
 
     // 3. Crear nuevos splits
-    const splitAmount = amount / participants.length
-    const splits = participants.map(userId => ({
-        expense_id: expenseId,
-        user_id: userId,
-        amount_owed: splitAmount,
-    }))
+    const splits = participants.map(userId => {
+        let splitAmount = 0
+        if (splitType === 'percentage') {
+            const percentage = parseFloat(formData.get(`share_${userId}`) as string) || 0
+            splitAmount = amount * (percentage / 100)
+        } else if (splitType === 'exact') {
+            splitAmount = parseFloat(formData.get(`share_${userId}`) as string) || 0
+        } else {
+            splitAmount = amount / participants.length
+        }
+        return {
+            expense_id: expenseId,
+            user_id: userId,
+            amount_owed: splitAmount,
+        }
+    })
 
     const { error: splitError } = await supabase
         .from('expense_splits')
