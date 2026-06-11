@@ -22,75 +22,72 @@ export function NotificationsDropdown({ initialNotifications }: { initialNotific
     const handleToggle = async () => {
         setIsOpen(!isOpen)
         
-        // If opening and there are unread notifications, mark them as read
         if (!isOpen && unreadCount > 0) {
             const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id)
             setNotifications(notifications.map(n => ({ ...n, is_read: true })))
-            
-            // Llama a una Server Action para actualizarlas en la base de datos
             await markNotificationsAsRead(unreadIds)
         }
     }
 
     return (
-        <div className="relative">
+        <div style={{ position: 'relative' }}>
             <button
                 onClick={handleToggle}
-                className="relative p-2 rounded-full bg-white text-zinc-600 hover:bg-zinc-50 hover:text-indigo-600 ring-1 ring-zinc-200 transition-colors shadow-sm"
+                style={{ position: 'relative', padding: '8px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--glass-border)', color: 'var(--muted-foreground)', cursor: 'pointer', display: 'flex', transition: 'all 0.15s' }}
             >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg style={{ width: '18px', height: '18px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
                 {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full ring-2 ring-white">
+                    <span style={{ position: 'absolute', top: '-4px', right: '-4px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', fontSize: '10px', fontWeight: 700, color: 'white', background: '#f43f5e', borderRadius: '50%', border: '2px solid var(--background)' }}>
                         {unreadCount}
                     </span>
                 )}
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl ring-1 ring-black ring-opacity-5 z-50 overflow-hidden">
-                    <div className="bg-zinc-50 px-4 py-3 border-b border-zinc-100 flex justify-between items-center">
-                        <h3 className="text-sm font-semibold text-zinc-800">Notificaciones</h3>
+                <div style={{ position: 'absolute', right: 0, marginTop: '8px', width: '320px', background: '#13131f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', zIndex: 50, overflow: 'hidden' }}>
+                    <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--foreground)' }}>Notificaciones</h3>
                         {unreadCount > 0 && (
-                            <span className="text-xs text-indigo-600 font-medium">{unreadCount} nuevas</span>
+                            <span style={{ fontSize: '12px', color: '#a78bfa', fontWeight: 600 }}>{unreadCount} nuevas</span>
                         )}
                     </div>
-                    <div className="max-h-80 overflow-y-auto">
+                    <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
                         {notifications.length === 0 ? (
-                            <div className="p-4 text-center text-sm text-zinc-500">
+                            <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '13px' }}>
                                 No tienes notificaciones nuevas.
                             </div>
                         ) : (
-                            <ul className="divide-y divide-zinc-100">
+                            <div>
                                 {notifications.map((notification) => {
                                     const content = (
-                                        <div className="flex flex-col gap-1">
-                                            <p className="text-sm font-semibold text-zinc-900">{notification.title}</p>
-                                            <p className="text-sm text-zinc-600">{notification.message}</p>
-                                            <p className="text-xs text-zinc-400 mt-1">
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--foreground)' }}>{notification.title}</p>
+                                            <p style={{ fontSize: '13px', color: 'var(--muted-foreground)' }}>{notification.message}</p>
+                                            <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', opacity: 0.6, marginTop: '2px' }}>
                                                 {new Date(notification.created_at).toLocaleDateString()}
                                             </p>
                                         </div>
-                                    );
+                                    )
 
                                     return (
-                                        <li key={notification.id} className={`hover:bg-zinc-50 transition-colors ${!notification.is_read ? 'bg-indigo-50/30' : ''}`}>
+                                        <div key={notification.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: !notification.is_read ? 'rgba(124,58,237,0.06)' : 'transparent' }}>
                                             {notification.group_id ? (
-                                                <Link 
-                                                    href={`/dashboard/groups/${notification.group_id}`} 
-                                                    className="block p-4"
+                                                <Link
+                                                    href={`/dashboard/groups/${notification.group_id}`}
+                                                    style={{ display: 'block', padding: '14px 16px', textDecoration: 'none' }}
                                                     onClick={() => setIsOpen(false)}
                                                 >
                                                     {content}
                                                 </Link>
                                             ) : (
-                                                <div className="p-4">{content}</div>
+                                                <div style={{ padding: '14px 16px' }}>{content}</div>
                                             )}
-                                        </li>
-                                    );
+                                        </div>
+                                    )
                                 })}
-                            </ul>
+                            </div>
                         )}
                     </div>
                 </div>

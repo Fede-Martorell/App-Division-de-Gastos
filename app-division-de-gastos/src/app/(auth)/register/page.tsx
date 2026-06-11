@@ -9,70 +9,37 @@ export default async function RegisterPage({
     const resolvedSearchParams = await searchParams
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
-            <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl ring-1 ring-zinc-200">
-
-                <div className="mb-8 text-center">
-                    {/* mismo logo que en el login */}
-                    <img
-                        src="/logoSplitar.png"
-                        alt="Logo Splitar"
-                        className="mx-auto h-16 w-auto object-contain"
-                    />
-                    <h1 className="mt-4 text-xl font-bold text-zinc-800">Crear cuenta</h1>
-                    <p className="mt-1 text-sm text-zinc-500">Ingresa tus datos para registrarte</p>
+        <div className="flex-1 flex items-center justify-center p-4 py-12">
+            <div style={{ width: '100%', maxWidth: '440px', background: '#13131f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '32px', boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }}>
+                <div style={{ marginBottom: '32px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <img src="/logoSplitar.png" alt="Logo Splitar" className="mx-auto h-16 w-auto object-contain brightness-0 invert" />
+                    <h1 style={{ marginTop: '16px', color: 'var(--foreground)', fontSize: '22px', fontWeight: 700 }}>Crear cuenta</h1>
+                    <p style={{ marginTop: '4px', color: 'var(--muted-foreground)', fontSize: '14px' }}>Ingresa tus datos para registrarte</p>
                 </div>
 
                 <form className="flex flex-col gap-5">
                     <div>
-                        <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="email">
-                            Correo electronico
-                        </label>
-                        <input
-                            id="email"
-                            name="email"
-                            type="email"
-                            placeholder="tu@email.com"
-                            required
-                            className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                        />
+                        <label style={{ color: 'var(--muted-foreground)', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }} htmlFor="email">Correo electrónico</label>
+                        <input id="email" name="email" type="email" placeholder="tu@email.com" required style={{ width: '100%', padding: '12px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'var(--foreground)', fontSize: '15px', outline: 'none', boxSizing: 'border-box' }} />
                     </div>
 
                     <div>
-                        <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="password">
-                            Contrasena
-                        </label>
-                        <input
-                            id="password"
-                            name="password"
-                            type="password"
-                            placeholder="••••••••"
-                            required
-                            className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                        />
+                        <label style={{ color: 'var(--muted-foreground)', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }} htmlFor="password">Contraseña</label>
+                        <input id="password" name="password" type="password" placeholder="••••••••" required style={{ width: '100%', padding: '12px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'var(--foreground)', fontSize: '15px', outline: 'none', boxSizing: 'border-box' }} />
                     </div>
 
-                    {/* muestra el error si la url lo trae, por ejemplo */}
                     {resolvedSearchParams?.error && (
-                        <p className="text-sm font-medium text-red-500 bg-red-50 p-3 rounded-md">
-                            {resolvedSearchParams.error}
-                        </p>
+                        <p style={{ fontSize: '14px', fontWeight: 500, color: '#f43f5e', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.2)', padding: '12px', borderRadius: '10px' }}>{resolvedSearchParams.error}</p>
                     )}
 
-                    <AuthButton
-                        formAction={signup}
-                        className="mt-2 w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
-                    >
+                    <AuthButton formAction={signup} className="mt-2 w-full rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-violet-900/30">
                         Registrarse
                     </AuthButton>
                 </form>
 
-                {/* link para volver al login si ya tiene cuenta */}
-                <p className="mt-6 text-center text-sm text-zinc-500">
-                    Ya tenes cuenta?{' '}
-                    <a href="/login" className="font-medium text-indigo-600 hover:underline">
-                        Inicia sesion
-                    </a>
+                <p style={{ marginTop: '24px', textAlign: 'center', fontSize: '14px', color: 'var(--muted-foreground)' }}>
+                    ¿Ya tenés cuenta?{' '}
+                    <a href="/login" style={{ fontWeight: 600, color: 'var(--violet-light)', textDecoration: 'none' }}>Iniciá sesión</a>
                 </p>
             </div>
         </div>

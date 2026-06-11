@@ -20,11 +20,12 @@ export function CopyLinkButton({ code }: { code: string }) {
         <button
             onClick={handleCopy}
             type="button"
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all shadow-sm w-full justify-center ${
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all w-full justify-center ${
                 copied
-                    ? 'bg-emerald-600 text-white shadow-emerald-200'
-                    : 'bg-zinc-800 text-white hover:bg-zinc-900 shadow-zinc-200 hover:shadow-md'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-white hover:opacity-90'
             }`}
+            style={!copied ? { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' } : {}}
         >
             {copied ? (
                 <>

@@ -20,68 +20,33 @@ export default function CreateGroupPage({
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
-            <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl ring-1 ring-zinc-200">
+        <div style={{ padding: '32px' }}>
+            <div style={{ maxWidth: '440px' }}>
+                <h1 style={{ color: 'var(--foreground)', fontSize: '26px', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '4px' }}>Crear Nuevo Grupo</h1>
+                <p style={{ color: 'var(--muted-foreground)', fontSize: '14px', marginBottom: '28px' }}>Organiza tus gastos con amigos o familia</p>
 
-                <div className="mb-8 text-center">
-                    <img
-                        src="/logoSplitar.png"
-                        alt="Logo Splitar"
-                        className="mx-auto h-16 w-auto object-contain"
-                    />
-                    <h1 className="mt-4 text-xl font-bold text-zinc-800">Crear Nuevo Grupo</h1>
-                    <p className="mt-1 text-sm text-zinc-500">Organiza tus gastos con amigos o familia</p>
+                <div style={{ background: '#13131f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '32px' }}>
+                    <form action={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div>
+                            <label style={{ color: 'var(--muted-foreground)', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }} htmlFor="name">Nombre del Grupo</label>
+                            <input id="name" name="name" type="text" placeholder="Ej. Viaje a Mendoza 🏔️" required style={{ width: '100%', padding: '12px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'var(--foreground)', fontSize: '15px', outline: 'none', boxSizing: 'border-box' }} />
+                        </div>
+
+                        <div>
+                            <label style={{ color: 'var(--muted-foreground)', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }} htmlFor="description">Descripción (Opcional)</label>
+                            <textarea id="description" name="description" placeholder="Ej. Gastos de alojamiento, comida y combustible" rows={3} style={{ width: '100%', padding: '12px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: 'var(--foreground)', fontSize: '15px', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }} />
+                        </div>
+
+                        {error && (
+                            <p style={{ fontSize: '14px', fontWeight: 500, color: '#f43f5e', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.2)', padding: '12px', borderRadius: '10px' }}>{error}</p>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                            <a href="/dashboard" style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'var(--muted-foreground)', textAlign: 'center', fontWeight: 600, fontSize: '14px', textDecoration: 'none' }}>Cancelar</a>
+                            <button type="submit" style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: '15px', boxShadow: '0 8px 24px rgba(124, 58, 237, 0.35)' }}>Crear Grupo</button>
+                        </div>
+                    </form>
                 </div>
-
-                <form action={handleSubmit} className="flex flex-col gap-5">
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="name">
-                            Nombre del Grupo
-                        </label>
-                        <input
-                            id="name"
-                            name="name"
-                            type="text"
-                            placeholder="Ej. Viaje a Mendoza 🏔️"
-                            required
-                            className="w-full rounded-lg border border-zinc-300 px-4 text-black py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="description">
-                            Descripción (Opcional)
-                        </label>
-                        <textarea
-                            id="description"
-                            name="description"
-                            placeholder="Ej. Gastos de alojamiento, comida y combustible"
-                            className="w-full rounded-lg border border-zinc-300 text-black px-4 py-2.5 outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                            rows={3}
-                        />
-                    </div>
-
-                    {error && (
-                        <p className="text-sm font-medium text-red-500 bg-red-50 p-3 rounded-md">
-                            {error}
-                        </p>
-                    )}
-
-                    <div className="flex gap-3 mt-2">
-                        <a
-                            href="/dashboard"
-                            className="flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-center text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
-                        >
-                            Cancelar
-                        </a>
-                        <button
-                            type="submit"
-                            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
-                        >
-                            Crear Grupo
-                        </button>
-                    </div>
-                </form>
             </div>
         </div>
     )
